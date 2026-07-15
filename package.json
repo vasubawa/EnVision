@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.5",
     "@types/katex": "^0.16.8",
+    "fabric": "^7.4.0",
     "katex": "^0.17.0",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
@@ -20,7 +21,8 @@
     "react-dom": "19.2.4",
     "react-dropzone": "^17.0.0",
     "sonner": "^2.0.7",
-    "typewriter-effect": "^2.22.0"
+    "typewriter-effect": "^2.22.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

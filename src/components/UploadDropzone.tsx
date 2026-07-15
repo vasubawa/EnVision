@@ -5,6 +5,8 @@ import { ArrowRight, FileText, UploadCloud, X, Camera } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { CameraModal } from "./CameraModal";
+import { useRouter } from "next/navigation";
+import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 
 function formatFileSize(bytes: number) {
   if (bytes === 0) return "0 Bytes";
@@ -36,11 +38,16 @@ export function UploadDropzone() {
     maxFiles: 1,
   });
 
+  const router = useRouter();
+  const setWorkspaceFile = useWorkspaceStore((state) => state.setFile);
+
   const handleStartLearning = () => {
     if (!file) return;
     setIsUploading(true);
     setTimeout(() => {
-      toast.success("Extraction started!", { id: TOAST_IDS.EXTRACT, description: "Your problem set is being processed." });
+      setWorkspaceFile(file);
+      toast.success("Extraction complete!", { id: TOAST_IDS.EXTRACT, description: "Opening your workspace..." });
+      router.push("/workspace");
       setIsUploading(false);
     }, 1500);
   };
@@ -80,21 +87,37 @@ export function UploadDropzone() {
               PDF, PNG, JPG or WEBP accepted
             </p>
           </div>
+
+          {/* Action buttons */}
           {!isDragActive && (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3 mt-2">
               <button
                 id="camera-btn"
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setIsCameraOpen(true); }}
-                className="group flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
+                className="group flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
                            border border-border bg-card hover:border-primary-500/40
                            text-foreground/70 hover:text-foreground hover:text-primary-500
                            transition-all duration-300 shadow-sm hover:shadow-md
-                           hover:-translate-y-0.5 active:translate-y-0"
+                           hover:-translate-y-0.5 active:translate-y-0 w-full sm:w-auto"
                 aria-label="Take a photo with camera"
               >
                 <Camera className="w-4 h-4 transition-transform group-hover:scale-110 duration-300" />
                 Take photo
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setWorkspaceFile(null);
+                  router.push("/workspace"); 
+                }}
+                className="group flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
+                           border border-border bg-transparent hover:bg-foreground/5
+                           text-foreground/60 hover:text-foreground
+                           transition-all duration-300 w-full sm:w-auto"
+              >
+                Blank Canvas
               </button>
             </div>
           )}
