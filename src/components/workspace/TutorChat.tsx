@@ -96,6 +96,7 @@ export function TutorChat() {
       toast.error(err.message);
     } finally {
       setIsAnalyzing(false);
+      lastAnalyzedRef.current = Date.now();
     }
   };
 

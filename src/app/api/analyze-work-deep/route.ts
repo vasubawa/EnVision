@@ -12,9 +12,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 });
     }
 
-    // Step 1: Vision Transcription (15s timeout)
+    // Step 1: Vision Transcription (30s timeout)
     const visionAbort = new AbortController();
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 15_000);
+    const visionTimeout = setTimeout(() => visionAbort.abort(), 30_000);
 
     let visionRes: any;
     try {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
               content: [
                 { 
                   type: 'text', 
-                  text: 'You are an image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. Output structured text only — no interpretation.' 
+                  text: "You are an expert math image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. The user is drawing with a mouse/finger, so handwriting can be very messy (e.g., 'x' might look like 'b' or 'v'). Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation." 
                 },
                 { 
                   type: 'image_url', 
@@ -54,10 +54,10 @@ export async function POST(req: NextRequest) {
     const canvasDescription = visionRes.choices[0].message.content;
     console.log('[analyze-work-deep] canvas description:', canvasDescription.slice(0, 200));
 
-    // Step 2: Deep Socratic Analysis via Groq (45s timeout)
+    // Step 2: Deep Socratic Analysis via Groq (25s timeout)
     // Using JSON output so isCorrect is reliable rather than a fragile heuristic
     const deepAbort = new AbortController();
-    const deepTimeout = setTimeout(() => deepAbort.abort(), 45_000);
+    const deepTimeout = setTimeout(() => deepAbort.abort(), 25_000);
 
     let deepRes: any;
     const t0 = Date.now();

@@ -2,9 +2,9 @@
 
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageSquare, PanelRightClose, PanelRightOpen } from "lucide-react";
 import dynamic from "next/dynamic";
 const Whiteboard = dynamic(() => import("@/components/workspace/Whiteboard").then(mod => mod.Whiteboard), { ssr: false });
 import { TutorChat } from "@/components/workspace/TutorChat";
@@ -12,6 +12,7 @@ import { TutorChat } from "@/components/workspace/TutorChat";
 export default function WorkspacePage() {
   const file = useWorkspaceStore((state) => state.file);
   const router = useRouter();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -43,20 +44,31 @@ export default function WorkspacePage() {
             {file?.name || "Blank Canvas"}
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 hover:bg-foreground/5 rounded-lg transition-colors text-foreground/60 hover:text-foreground"
+            title={isSidebarOpen ? "Close AI Tutor" : "Open AI Tutor"}
+          >
+            {isSidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+          </button>
+        </div>
       </header>
 
       {/* Main Workspace Area (Split Screen) */}
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Top/Left Side: Whiteboard */}
-        <section className="h-[60vh] md:h-auto md:flex-[7] relative border-b md:border-b-0 md:border-r border-border bg-transparent shrink-0 md:shrink">
+        <section className={`h-[60vh] md:h-auto ${isSidebarOpen ? "md:flex-[7]" : "md:flex-1"} relative border-b md:border-b-0 md:border-r border-border bg-transparent shrink-0 md:shrink transition-all duration-300`}>
           <Whiteboard />
         </section>
 
         {/* Bottom/Right Side: AI Tutor Chat */}
-        <section className="flex-1 md:flex-[3] relative bg-card/40 backdrop-blur-sm flex flex-col min-h-0">
-          <TutorChat />
-        </section>
+        {isSidebarOpen && (
+          <section className="flex-1 md:flex-[3] md:w-[30%] relative bg-card/40 backdrop-blur-sm flex flex-col min-h-0 transition-all duration-300">
+            <TutorChat />
+          </section>
+        )}
       </main>
     </div>
   );

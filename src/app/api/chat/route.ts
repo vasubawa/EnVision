@@ -2,11 +2,13 @@ import { NextRequest } from 'next/server';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
 import { MODELS, API_BASES } from '@/lib/models';
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, data } = await req.json();
 
-    let systemPrompt = "You are a helpful Socratic tutor. Guide the student using hints and questions. Format math using $ for inline and $$ for blocks.";
+    let systemPrompt = "You are a helpful Socratic tutor. Guide the student using hints and questions. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed in $ for inline and $$ for blocks. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\\\int$ instead of int, $\\\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O.";
 
     // If a canvas image was sent, transcribe it first so the tutor can "see" it
     const canvasBase64 = data?.canvasBase64 || data?.[0]?.canvasBase64;
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
                 content: [
                   { 
                     type: 'text', 
-                    text: 'Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. Output structured text only — no interpretation.' 
+                    text: "You are an expert math image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. The user is drawing with a mouse/finger, so handwriting can be very messy (e.g., 'x' might look like 'b' or 'v'). Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation." 
                   },
                   { 
                     type: 'image_url', 
