@@ -13,7 +13,7 @@ if (typeof window !== "undefined") {
 }
 
 export function Whiteboard() {
-  const file = useWorkspaceStore((state) => state.file);
+  const { file, setGetCanvasImage, setLastCanvasUpdate } = useWorkspaceStore();
   const { resolvedTheme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,6 +29,7 @@ export function Whiteboard() {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const isHistoryUpdate = useRef(false);
+  const historyIndexRef = useRef(-1);
 
   // Expose undo/redo to Toolbar
   const canUndo = historyIndex > 0;
@@ -38,18 +39,28 @@ export function Whiteboard() {
     if (isHistoryUpdate.current || !fabricRef.current) return;
     const json = JSON.stringify(fabricRef.current.toJSON());
     setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1);
+      const newHistory = prev.slice(0, historyIndexRef.current + 1);
       newHistory.push(json);
-      setHistoryIndex(newHistory.length - 1);
+      const newIdx = newHistory.length - 1;
+      setHistoryIndex(newIdx);
+      historyIndexRef.current = newIdx;
+      
+      // Don't trigger auto-analysis on the initial blank state
+      // Defer out of the React state updater to avoid "setState during render" warning
+      // (Zustand notifies TutorChat subscribers, which can't happen mid-reconciliation)
+      if (newIdx > 0) {
+        queueMicrotask(() => setLastCanvasUpdate(Date.now()));
+      }
       return newHistory;
     });
-  }, [historyIndex]);
+  }, [setLastCanvasUpdate]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0 && fabricRef.current) {
       isHistoryUpdate.current = true;
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
+      historyIndexRef.current = newIndex;
       fabricRef.current.loadFromJSON(history[newIndex]).then(() => {
         fabricRef.current?.renderAll();
         isHistoryUpdate.current = false;
@@ -62,12 +73,79 @@ export function Whiteboard() {
       isHistoryUpdate.current = true;
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
+      historyIndexRef.current = newIndex;
       fabricRef.current.loadFromJSON(history[newIndex]).then(() => {
         fabricRef.current?.renderAll();
         isHistoryUpdate.current = false;
       });
     }
   }, [history, historyIndex]);
+
+  const handleAddFile = useCallback((fileToLoad: File) => {
+    if (!fileToLoad || !fabricRef.current) return;
+    
+    if (fileToLoad.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        fabric.FabricImage.fromURL(dataUrl).then((img) => {
+          if (!fabricRef.current) return;
+          const canvas = fabricRef.current;
+          const scale = Math.min(
+            (canvas.width! * 0.8) / img.width!,
+            (canvas.height! * 0.8) / img.height!
+          );
+          
+          img.scale(scale);
+          canvas.centerObject(img);
+          
+          // Make image a movable object instead of static background
+          canvas.add(img);
+          // Don't send to back if it's manually added via toolbar so it doesn't hide behind existing things
+          saveHistory(); 
+        }).catch(console.error);
+      };
+      reader.readAsDataURL(fileToLoad);
+    } else if (fileToLoad.type === "application/pdf") {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const typedarray = new Uint8Array(reader.result as ArrayBuffer);
+          const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+          const page = await pdf.getPage(1);
+          
+          // Render PDF to a hidden canvas
+          const viewport = page.getViewport({ scale: 2.0 }); // High res
+          const pdfCanvas = document.createElement("canvas");
+          const context = pdfCanvas.getContext("2d");
+          if (!context) return;
+          pdfCanvas.height = viewport.height;
+          pdfCanvas.width = viewport.width;
+          
+          await page.render({ canvasContext: context, canvas: pdfCanvas, viewport: viewport }).promise;
+          
+          // Convert to Fabric image
+          const dataUrl = pdfCanvas.toDataURL("image/png");
+          const img = await fabric.FabricImage.fromURL(dataUrl);
+          
+          if (!fabricRef.current) return;
+          const canvas = fabricRef.current;
+          const scale = Math.min(
+            (canvas.width! * 0.8) / img.width!,
+            (canvas.height! * 0.8) / img.height!
+          );
+          
+          img.scale(scale);
+          canvas.centerObject(img);
+          canvas.add(img);
+          saveHistory();
+        } catch (err) {
+          console.error("Error loading PDF", err);
+        }
+      };
+      reader.readAsArrayBuffer(fileToLoad);
+    }
+  }, [saveHistory]);
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -81,6 +159,12 @@ export function Whiteboard() {
     });
     fabricRef.current = canvas;
 
+    // Register getCanvasImage
+    setGetCanvasImage(() => {
+      if (!fabricRef.current) return null;
+      return fabricRef.current.toDataURL({ format: 'png', quality: 0.8, multiplier: 1 });
+    });
+
     // Set up drawing brush
     const brush = new fabric.PencilBrush(canvas);
     brush.color = color;
@@ -92,68 +176,14 @@ export function Whiteboard() {
 
     // Load file (Image or PDF)
     if (file) {
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          fabric.FabricImage.fromURL(dataUrl).then((img) => {
-            if (!fabricRef.current) return;
-            const canvas = fabricRef.current;
-            const scale = Math.min(
-              (canvas.width! * 0.8) / img.width!,
-              (canvas.height! * 0.8) / img.height!
-            );
-            
-            img.scale(scale);
-            canvas.centerObject(img);
-            
-            // Make image a movable object instead of static background
-            canvas.add(img);
-            canvas.sendObjectToBack(img);
-            saveHistory(); 
-          }).catch(console.error);
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type === "application/pdf") {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          try {
-            const typedarray = new Uint8Array(reader.result as ArrayBuffer);
-            const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-            const page = await pdf.getPage(1);
-            
-            // Render PDF to a hidden canvas
-            const viewport = page.getViewport({ scale: 2.0 }); // High res
-            const pdfCanvas = document.createElement("canvas");
-            const context = pdfCanvas.getContext("2d");
-            if (!context) return;
-            pdfCanvas.height = viewport.height;
-            pdfCanvas.width = viewport.width;
-            
-            await page.render({ canvasContext: context, canvas: pdfCanvas, viewport: viewport }).promise;
-            
-            // Convert to Fabric image
-            const dataUrl = pdfCanvas.toDataURL("image/png");
-            const img = await fabric.FabricImage.fromURL(dataUrl);
-            
-            if (!fabricRef.current) return;
-            const canvas = fabricRef.current;
-            const scale = Math.min(
-              (canvas.width! * 0.8) / img.width!,
-              (canvas.height! * 0.8) / img.height!
-            );
-            
-            img.scale(scale);
-            canvas.centerObject(img);
-            canvas.add(img);
-            canvas.sendObjectToBack(img);
-            saveHistory();
-          } catch (err) {
-            console.error("Error loading PDF", err);
-          }
-        };
-        reader.readAsArrayBuffer(file);
-      }
+      handleAddFile(file);
+      // For initial file, we want it to be at the back
+      setTimeout(() => {
+        if (fabricRef.current) {
+          const objs = fabricRef.current.getObjects();
+          if (objs.length > 0) fabricRef.current.sendObjectToBack(objs[objs.length - 1]);
+        }
+      }, 500);
     }
 
     // --- INFINITE DOT GRID ---
@@ -204,8 +234,8 @@ export function Whiteboard() {
       const delta = opt.e.deltaY;
       let zoom = canvas.getZoom();
       zoom *= 0.999 ** delta;
-      if (zoom > 20) zoom = 20;
-      if (zoom < 0.1) zoom = 0.1;
+      if (zoom > 500) zoom = 500;
+      if (zoom < 0.01) zoom = 0.01;
       canvas.zoomToPoint(new fabric.Point(opt.e.offsetX, opt.e.offsetY), zoom);
       opt.e.preventDefault();
       opt.e.stopPropagation();
@@ -224,14 +254,18 @@ export function Whiteboard() {
     const getSize = () => parseInt(document.documentElement.getAttribute('data-draw-size') || '4');
 
     canvas.on('mouse:down', function(opt) {
-      const evt = opt.e as MouseEvent;
+      const evt = opt.e as any;
       const currentMode = getMode();
+      
+      const getClientX = (e: any) => (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+      const getClientY = (e: any) => (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+
       // Middle click, Alt, or 'pan' mode for panning
-      if (evt.button === 1 || evt.altKey || currentMode === "pan") {
+      if (evt.button === 1 || evt.altKey || currentMode === "pan" || (evt.touches && evt.touches.length > 1)) {
         isPanning = true;
         canvas.selection = false;
-        lastPosX = evt.clientX;
-        lastPosY = evt.clientY;
+        lastPosX = getClientX(evt);
+        lastPosY = getClientY(evt);
         canvas.defaultCursor = 'grabbing';
         return;
       }
@@ -259,15 +293,23 @@ export function Whiteboard() {
     });
 
     canvas.on('mouse:move', function(opt) {
-      const evt = opt.e as MouseEvent;
+      const evt = opt.e as any;
+      const getClientX = (e: any) => (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+      const getClientY = (e: any) => (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+
       if (isPanning) {
         const vpt = canvas.viewportTransform;
         if (vpt) {
-          vpt[4] += evt.clientX - lastPosX;
-          vpt[5] += evt.clientY - lastPosY;
-          canvas.requestRenderAll();
-          lastPosX = evt.clientX;
-          lastPosY = evt.clientY;
+          const cx = getClientX(evt);
+          const cy = getClientY(evt);
+          
+          if (cx !== undefined && cy !== undefined && lastPosX !== undefined && lastPosY !== undefined) {
+            vpt[4] += cx - lastPosX;
+            vpt[5] += cy - lastPosY;
+            canvas.requestRenderAll();
+          }
+          lastPosX = cx;
+          lastPosY = cy;
         }
         return;
       }
@@ -438,7 +480,7 @@ export function Whiteboard() {
   }, [handleUndo, handleRedo, handleDeleteSelected]);
 
   return (
-    <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-transparent">
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-transparent touch-none">
       <Toolbar 
         mode={mode} setMode={setMode} 
         color={color} setColor={setColor}
@@ -452,6 +494,7 @@ export function Whiteboard() {
         onRedo={handleRedo}
         showGrid={showGrid}
         setShowGrid={setShowGrid}
+        onUploadFile={handleAddFile}
       />
       <div className="absolute inset-0 z-10">
         <canvas ref={canvasRef} />

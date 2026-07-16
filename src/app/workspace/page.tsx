@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArrowLeft } from "lucide-react";
-import { Whiteboard } from "@/components/workspace/Whiteboard";
+import dynamic from "next/dynamic";
+const Whiteboard = dynamic(() => import("@/components/workspace/Whiteboard").then(mod => mod.Whiteboard), { ssr: false });
 import { TutorChat } from "@/components/workspace/TutorChat";
 
 export default function WorkspacePage() {
