@@ -1,8 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { MODELS, API_BASES } from '@/lib/models';
 
-// Tell Vercel this function may run up to 30 seconds (Pro plan required for >10s)
-export const maxDuration = 30;
+// Tell Vercel this function may run up to 60 seconds (Pro plan required for >10s)
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,9 +12,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 });
     }
 
-    // Step 1: Vision Transcription (15s timeout)
+    // Step 1: Vision Transcription (30s timeout)
     const visionAbort = new AbortController();
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 15_000);
+    const visionTimeout = setTimeout(() => visionAbort.abort(), 30_000);
 
     let visionRes: any;
     try {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
               content: [
                 { 
                   type: 'text', 
-                  text: 'You are an image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. Output structured text only — no interpretation.' 
+                  text: "You are an expert math image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. The user is drawing with a mouse/finger, so handwriting can be very messy (e.g., 'x' might look like 'b' or 'v'). Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation." 
                 },
                 { 
                   type: 'image_url', 
@@ -52,9 +52,9 @@ export async function POST(req: NextRequest) {
     }
     const canvasDescription = visionRes.choices[0].message.content;
 
-    // Step 2: Socratic Tutor (20s timeout)
+    // Step 2: Socratic Tutor (25s timeout)
     const groqAbort = new AbortController();
-    const groqTimeout = setTimeout(() => groqAbort.abort(), 20_000);
+    const groqTimeout = setTimeout(() => groqAbort.abort(), 25_000);
 
     let groqRes: any;
     try {
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
           max_tokens: 200,
           messages: [{
             role: 'user',
-            content: `You are a Socratic tutor giving quick feedback on student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nRespond with ONE single Socratic question or short observation (max 2 sentences). End your response with a question mark.\n\nSTRICT RULES:\n- NEVER list steps, methods, or actions for the student to perform.\n- NEVER use the words "then", "next", "finally", "first", or "step" — these signal you are prescribing a method.\n- If blank/only a problem statement: ask what they notice about the setup.\n- If work looks correct: confirm briefly and ask what comes next.\n- If there is an error: ask about the specific part that is wrong (don't explain the error).\n- Format math with $...$ inline, $$...$$ block. Use ^ for exponents, always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`
+            content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`
           }],
           response_format: { type: "json_object" }
         })
