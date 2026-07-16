@@ -1,7 +1,7 @@
 "use client";
 
-import { Pen, MousePointer2, Trash2, X, Undo2, Redo2, Square, Circle, Minus, Hand, Grid } from "lucide-react";
-import { useState } from "react";
+import { Pen, MousePointer2, Trash2, X, Undo2, Redo2, Square, Circle, Minus, Hand, Grid, Upload } from "lucide-react";
+import { useState, useRef } from "react";
 
 export type DrawingMode = "draw" | "select" | "pan" | "rect" | "circle" | "line";
 export type BrushColor = "#C05621" | "#1A1510" | "#2B6CB0" | "#D69E2E" | "#38A169" | "#805AD5" | "#E53E3E";
@@ -23,10 +23,24 @@ interface ToolbarProps {
   onRedo: () => void;
   showGrid: boolean;
   setShowGrid: (show: boolean) => void;
+  onUploadFile?: (file: File) => void;
 }
 
-export function Toolbar({ mode, setMode, color, setColor, size, setSize, onClear, onDeleteSelected, hasSelection, canUndo, canRedo, onUndo, onRedo, showGrid, setShowGrid }: ToolbarProps) {
+export function Toolbar({ mode, setMode, color, setColor, size, setSize, onClear, onDeleteSelected, hasSelection, canUndo, canRedo, onUndo, onRedo, showGrid, setShowGrid, onUploadFile }: ToolbarProps) {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadFile) {
+      onUploadFile(file);
+    }
+    // Reset input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-wrap justify-center items-center gap-1.5 p-1.5 w-[95%] md:w-max max-w-2xl rounded-2xl bg-card/80 backdrop-blur-md border border-border shadow-sm">
       <button
@@ -157,6 +171,26 @@ export function Toolbar({ mode, setMode, color, setColor, size, setSize, onClear
       >
         <Grid className="w-4 h-4" />
       </button>
+
+      {onUploadFile && (
+        <>
+          <div className="w-px h-6 bg-border mx-1" />
+          <input 
+            type="file" 
+            accept="image/*,application/pdf" 
+            className="hidden" 
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 rounded-xl transition-colors text-foreground/60 hover:bg-foreground/5 hover:text-foreground"
+            title="Upload Image or PDF"
+          >
+            <Upload className="w-4 h-4" />
+          </button>
+        </>
+      )}
 
       <div className="w-px h-6 bg-border mx-1" />
 
