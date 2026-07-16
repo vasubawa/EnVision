@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
 import { MODELS, API_BASES } from '@/lib/models';
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, data } = await req.json();
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
                 content: [
                   { 
                     type: 'text', 
-                    text: 'Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. Output structured text only — no interpretation.' 
+                    text: "You are an expert math image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. Pay close attention to typed problem statements at the top to infer correct variables (e.g., if the problem uses 'z', make sure not to confuse handwritten 'z' for '2', 'x', or 'y'). Output structured text only — no interpretation." 
                   },
                   { 
                     type: 'image_url', 
