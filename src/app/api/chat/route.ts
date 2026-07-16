@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   try {
     const { messages, data } = await req.json();
 
-    let systemPrompt = "You are a helpful Socratic tutor. Guide the student using hints and questions. Format math using $ for inline and $$ for blocks.";
+    let systemPrompt = "You are a helpful Socratic tutor. Guide the student using hints and questions. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed in $ for inline and $$ for blocks. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\int$ instead of int, $\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O.";
 
     // If a canvas image was sent, transcribe it first so the tutor can "see" it
     const canvasBase64 = data?.canvasBase64 || data?.[0]?.canvasBase64;
