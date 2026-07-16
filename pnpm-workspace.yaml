@@ -1,4 +1,5 @@
 onlyBuiltDependencies:
   - canvas
+  - protobufjs
   - sharp
   - unrs-resolver
