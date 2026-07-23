@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { MODELS, API_BASES } from '@/lib/models';
+import { MODELS, apiKey } from '@/lib/models';
 
 // Tell Vercel this function may run up to 60 seconds (Pro plan required for >10s)
 export const maxDuration = 60;
@@ -18,15 +18,15 @@ export async function POST(req: NextRequest) {
 
     let visionRes: any;
     try {
-      const visionReq = await fetch(`${API_BASES.nim}/chat/completions`, {
+      const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
         method: 'POST',
         signal: visionAbort.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NVIDIA_NIM_API_KEY}`
+          'Authorization': `Bearer ${apiKey(MODELS.vision)}`
         },
         body: JSON.stringify({
-          model: MODELS.vision,
+          model: MODELS.vision.model,
           max_tokens: 1000,
           messages: [
             {
@@ -62,15 +62,15 @@ export async function POST(req: NextRequest) {
     let deepRes: any;
     const t0 = Date.now();
     try {
-      const deepReq = await fetch(`${API_BASES.groq}/chat/completions`, {
+      const deepReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
         method: 'POST',
         signal: deepAbort.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+          'Authorization': `Bearer ${apiKey(MODELS.reasoning)}`
         },
         body: JSON.stringify({
-          model: MODELS.reasoning,
+          model: MODELS.reasoning.model,
           max_tokens: 600,
           response_format: { type: 'json_object' },
           messages: [{

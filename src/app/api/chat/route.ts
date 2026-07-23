@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
-import { MODELS, API_BASES } from '@/lib/models';
+import { MODELS, apiKey } from '@/lib/models';
 
 export const maxDuration = 60;
 
@@ -14,14 +14,14 @@ export async function POST(req: NextRequest) {
     const canvasBase64 = data?.canvasBase64 || data?.[0]?.canvasBase64;
     if (canvasBase64) {
       try {
-        const visionReq = await fetch(`${API_BASES.nim}/chat/completions`, {
+        const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.NVIDIA_NIM_API_KEY}`
+            'Authorization': `Bearer ${apiKey(MODELS.vision)}`
           },
           body: JSON.stringify({
-            model: MODELS.vision,
+            model: MODELS.vision.model,
             max_tokens: 1000,
             messages: [
               {
@@ -50,14 +50,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const groqReq = await fetch(`${API_BASES.groq}/chat/completions`, {
+    const groqReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+        'Authorization': `Bearer ${apiKey(MODELS.reasoning)}`
       },
       body: JSON.stringify({
-        model: MODELS.reasoning,
+        model: MODELS.reasoning.model,
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
