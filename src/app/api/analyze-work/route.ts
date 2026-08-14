@@ -1,43 +1,61 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { MODELS, API_BASES } from '@/lib/models';
+import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models';
+import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts';
 
-// Tell Vercel this function may run up to 60 seconds (Pro plan required for >10s)
-export const maxDuration = 60;
+interface Feedback {
+  isCorrect: boolean;
+  suggestion: string;
+}
+
+function isFeedbackShape(obj: unknown): obj is Feedback {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof (obj as Feedback).suggestion === 'string' &&
+    typeof (obj as Feedback).isCorrect === 'boolean'
+  );
+}
+// Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined
+export const maxDuration = 75;
 
 export async function POST(req: NextRequest) {
   try {
     const { canvasBase64 } = await req.json();
-    
+
     if (!canvasBase64) {
       return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 });
     }
 
-    // Step 1: Vision Transcription (30s timeout)
+    // Step 1: Vision Transcription (45s timeout — reasoning model needs room to think)
     const visionAbort = new AbortController();
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 30_000);
+    const visionTimeout = setTimeout(() => visionAbort.abort(), 45_000);
 
-    let visionRes: any;
+    let visionRes: ChatCompletionResponse;
     try {
-      const visionReq = await fetch(`${API_BASES.nim}/chat/completions`, {
+      const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
         method: 'POST',
         signal: visionAbort.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NVIDIA_NIM_API_KEY}`
+          'Authorization': `Bearer ${apiKey(MODELS.vision)}`
         },
         body: JSON.stringify({
-          model: MODELS.vision,
-          max_tokens: 1000,
+          model: MODELS.vision.model,
+          max_tokens: 2000,
+          reasoning_budget: 4096,
+          temperature: 0.6,
+          top_p: 0.95,
+          response_format: { type: 'json_object' },
           messages: [
             {
               role: 'user',
               content: [
-                { 
-                  type: 'text', 
-                  text: "You are an expert math image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. The user is drawing with a mouse/finger, so handwriting can be very messy (e.g., 'x' might look like 'b' or 'v'). Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation." 
+                {
+                  type: 'text',
+                  text: VISION_TRANSCRIBE_PROMPT
                 },
-                { 
-                  type: 'image_url', 
+                {
+                  type: 'image_url',
                   image_url: { url: canvasBase64 }
                 }
               ]
@@ -50,27 +68,27 @@ export async function POST(req: NextRequest) {
     } finally {
       clearTimeout(visionTimeout);
     }
-    const canvasDescription = visionRes.choices[0].message.content;
+    const canvasDescription = extractTranscription(visionRes.choices[0].message.content, stripThinking);
 
     // Step 2: Socratic Tutor (25s timeout)
     const groqAbort = new AbortController();
     const groqTimeout = setTimeout(() => groqAbort.abort(), 25_000);
 
-    let groqRes: any;
+    let groqRes: ChatCompletionResponse;
     try {
-      const groqReq = await fetch(`${API_BASES.groq}/chat/completions`, {
+      const groqReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
         method: 'POST',
         signal: groqAbort.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+          'Authorization': `Bearer ${apiKey(MODELS.reasoning)}`
         },
         body: JSON.stringify({
-          model: MODELS.reasoning,
+          model: MODELS.reasoning.model,
           max_tokens: 200,
           messages: [{
             role: 'user',
-            content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`
+            content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`
           }],
           response_format: { type: "json_object" }
         })
@@ -84,24 +102,22 @@ export async function POST(req: NextRequest) {
 
     console.log('[analyze-work] raw LLM output:', rawText);
 
-    let parsedResult: { isCorrect: boolean; suggestion: string } | null = null;
+    let parsedResult: Feedback | null = null;
 
-    // Helper: extract and clean a parsed { isCorrect, suggestion } object
-    const extractResult = (obj: any): typeof parsedResult => {
-      if (obj && typeof obj.suggestion === 'string' && typeof obj.isCorrect === 'boolean') {
+    const extractResult = (obj: unknown): Feedback | null => {
+      if (isFeedbackShape(obj)) {
         let suggestion = obj.suggestion
-          .replace(/\r\n|\r|\n/g, ' ')    // collapse real newlines to spaces
-          .replace(/\\n/g, ' ')            // collapse literal \n sequences
-          .replace(/\s{2,}/g, ' ')         // collapse multiple spaces
+          .replace(/\r\n|\r|\n/g, ' ')    
+          .replace(/\\n/g, ' ')            
+          .replace(/\s{2,}/g, ' ')         
           .trim();
-        // Guard: if the model double-wrapped by putting JSON inside the suggestion string,
-        // try to parse it again and use the inner result
         if (suggestion.trimStart().startsWith('{')) {
           try {
-            const inner = JSON.parse(suggestion);
-            if (typeof inner.suggestion === 'string') {
-              suggestion = inner.suggestion.replace(/\r\n|\r|\n/g, ' ').replace(/\\n/g, ' ').trim();
-              return { isCorrect: !!inner.isCorrect, suggestion };
+            const inner: unknown = JSON.parse(suggestion);
+            if (typeof inner === 'object' && inner !== null && typeof (inner as { suggestion?: unknown }).suggestion === 'string') {
+              const innerObj = inner as { suggestion: string; isCorrect?: unknown };
+              suggestion = innerObj.suggestion.replace(/\r\n|\r|\n/g, ' ').replace(/\\n/g, ' ').trim();
+              return { isCorrect: !!innerObj.isCorrect, suggestion };
             }
           } catch { /* not nested JSON, use as-is */ }
         }
@@ -143,7 +159,7 @@ export async function POST(req: NextRequest) {
       const suggestionMatch = rawText.match(/"suggestion"\s*:\s*"([\s\S]*?)(?<!\\)"/);
       const suggestion = suggestionMatch
         ? suggestionMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"').replace(/\s{2,}/g, ' ').trim()
-        : rawText.replace(/[{}"\n]/g, ' ').trim();
+        : rawText.replace(/[{}"\\n]/g, ' ').trim();
       parsedResult = {
         isCorrect: isCorrectMatch?.[1] === 'true',
         suggestion,
@@ -151,8 +167,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(parsedResult);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('analyze-work error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
