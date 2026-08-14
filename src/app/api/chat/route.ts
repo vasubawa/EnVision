@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
-import { MODELS, API_BASES } from '@/lib/models';
+import { MODELS, apiKey, stripThinking } from '@/lib/models';
+import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts';
 
-export const maxDuration = 60;
+export const maxDuration = 75;
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,26 +14,34 @@ export async function POST(req: NextRequest) {
     // If a canvas image was sent, transcribe it first so the tutor can "see" it
     const canvasBase64 = data?.canvasBase64 || data?.[0]?.canvasBase64;
     if (canvasBase64) {
+      const visionAbort = new AbortController();
+      let visionTimeout: NodeJS.Timeout | null = null;
       try {
-        const visionReq = await fetch(`${API_BASES.nim}/chat/completions`, {
+        visionTimeout = setTimeout(() => visionAbort.abort(), 45_000);
+        const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
+          signal: visionAbort.signal,
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.NVIDIA_NIM_API_KEY}`
+            'Authorization': `Bearer ${apiKey(MODELS.vision)}`
           },
           body: JSON.stringify({
-            model: MODELS.vision,
-            max_tokens: 1000,
+            model: MODELS.vision.model,
+            max_tokens: 2000,
+            reasoning_budget: 4096,
+            temperature: 0.6,
+            top_p: 0.95,
+            response_format: { type: 'json_object' },
             messages: [
               {
                 role: 'user',
                 content: [
-                  { 
-                    type: 'text', 
-                    text: "You are an expert math image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. The user is drawing with a mouse/finger, so handwriting can be very messy (e.g., 'x' might look like 'b' or 'v'). Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation." 
+                  {
+                    type: 'text',
+                    text: VISION_TRANSCRIBE_PROMPT
                   },
-                  { 
-                    type: 'image_url', 
+                  {
+                    type: 'image_url',
                     image_url: { url: canvasBase64 }
                   }
                 ]
@@ -43,21 +52,24 @@ export async function POST(req: NextRequest) {
 
         if (visionReq.ok) {
           const visionRes = await visionReq.json();
-          systemPrompt += `\n\nThe student is currently looking at their whiteboard. Here is a transcription of what is on it right now:\n\n${visionRes.choices[0].message.content}`;
+          const transcription = extractTranscription(visionRes.choices[0].message.content, stripThinking);
+          systemPrompt += `\n\nThe student is currently looking at their whiteboard. Here is a transcription of what is on it right now:\n\n${transcription}`;
         }
       } catch (e) {
         console.error("Failed to transcribe canvas for chat:", e);
+      } finally {
+        if (visionTimeout) clearTimeout(visionTimeout);
       }
     }
 
-    const groqReq = await fetch(`${API_BASES.groq}/chat/completions`, {
+    const groqReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+        'Authorization': `Bearer ${apiKey(MODELS.reasoning)}`
       },
       body: JSON.stringify({
-        model: MODELS.reasoning,
+        model: MODELS.reasoning.model,
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
@@ -72,8 +84,9 @@ export async function POST(req: NextRequest) {
 
     const stream = OpenAIStream(groqReq);
     return new StreamingTextResponse(stream);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('chat error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 }
