@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Static assets — vendored/minified files (e.g. the pdf.js worker) aren't source.
+    "public/**",
   ]),
 ]);
 

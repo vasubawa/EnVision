@@ -1,8 +1,22 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { MODELS, apiKey } from '@/lib/models';
+import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models';
+import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts';
 
-// Tell Vercel this function may run up to 60 seconds (Pro plan required for >10s)
-export const maxDuration = 60;
+interface Feedback {
+  isCorrect: boolean;
+  suggestion: string;
+}
+
+function isFeedbackShape(obj: unknown): obj is Feedback {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof (obj as Feedback).suggestion === 'string' &&
+    typeof (obj as Feedback).isCorrect === 'boolean'
+  );
+}
+
+export const maxDuration = 90;
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,32 +26,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 });
     }
 
-    // Step 1: Vision Transcription (30s timeout)
     const visionAbort = new AbortController();
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 30_000);
+    const visionTimeout = setTimeout(() => visionAbort.abort(), 60_000);
 
-    let visionRes: any;
+    let visionRes: ChatCompletionResponse;
     try {
-      const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
+      const visionReq = await fetch(`${MODELS.visionDeep.apiBase}/chat/completions`, {
         method: 'POST',
         signal: visionAbort.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey(MODELS.vision)}`
+          'Authorization': `Bearer ${apiKey(MODELS.visionDeep)}`
         },
         body: JSON.stringify({
-          model: MODELS.vision.model,
-          max_tokens: 1000,
+          model: MODELS.visionDeep.model,
+          max_tokens: 1500,
+          response_format: { type: 'json_object' },
           messages: [
             {
               role: 'user',
               content: [
-                { 
-                  type: 'text', 
-                  text: "You are an expert math image transcriber. Describe exactly what is written on this whiteboard canvas: equations, steps, notation, any scratch work. The user is drawing with a mouse/finger, so handwriting can be very messy (e.g., 'x' might look like 'b' or 'v'). Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation." 
+                {
+                  type: 'text',
+                  text: VISION_TRANSCRIBE_PROMPT
                 },
-                { 
-                  type: 'image_url', 
+                {
+                  type: 'image_url',
                   image_url: { url: canvasBase64 }
                 }
               ]
@@ -50,16 +64,15 @@ export async function POST(req: NextRequest) {
     } finally {
       clearTimeout(visionTimeout);
     }
-    
-    const canvasDescription = visionRes.choices[0].message.content;
+
+    const canvasDescription = extractTranscription(visionRes.choices[0].message.content, stripThinking);
     console.log('[analyze-work-deep] canvas description:', canvasDescription.slice(0, 200));
 
-    // Step 2: Deep Socratic Analysis via Groq (25s timeout)
-    // Using JSON output so isCorrect is reliable rather than a fragile heuristic
+
     const deepAbort = new AbortController();
     const deepTimeout = setTimeout(() => deepAbort.abort(), 25_000);
 
-    let deepRes: any;
+    let deepRes: ChatCompletionResponse;
     const t0 = Date.now();
     try {
       const deepReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
@@ -90,9 +103,9 @@ export async function POST(req: NextRequest) {
     console.log('[analyze-work-deep] raw output:', rawText);
 
     // Reuse same robust parsing logic as the quick-check route
-    let parsedResult: { isCorrect: boolean; suggestion: string } | null = null;
-    const extractResult = (obj: any): typeof parsedResult => {
-      if (obj && typeof obj.suggestion === 'string' && typeof obj.isCorrect === 'boolean') {
+    let parsedResult: Feedback | null = null;
+    const extractResult = (obj: unknown): Feedback | null => {
+      if (isFeedbackShape(obj)) {
         const suggestion = obj.suggestion
           .replace(/\r\n|\r|\n/g, ' ')
           .replace(/\\n/g, ' ')
@@ -114,11 +127,12 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(parsedResult);
-  } catch (error: any) {
-    const isTimeout = error.name === 'AbortError';
-    console.error('analyze-work-deep error:', isTimeout ? 'TIMEOUT' : error.message);
+  } catch (error: unknown) {
+    const isTimeout = error instanceof Error && error.name === 'AbortError';
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('analyze-work-deep error:', isTimeout ? 'TIMEOUT' : message);
     return NextResponse.json(
-      { error: isTimeout ? 'Analysis timed out. Please try again.' : error.message },
+      { error: isTimeout ? 'Analysis timed out. Please try again.' : message },
       { status: isTimeout ? 504 : 500 }
     );
   }
