@@ -13,10 +13,13 @@ import {
   Hand,
   Grid,
   Upload,
+  Eraser,
+  Type,
+  Download,
 } from 'lucide-react'
 import { useState, useRef } from 'react'
 
-export type DrawingMode = 'draw' | 'select' | 'pan' | 'rect' | 'circle' | 'line'
+export type DrawingMode = 'draw' | 'select' | 'pan' | 'rect' | 'circle' | 'line' | 'text' | 'erase'
 export type BrushColor =
   '#C05621' | '#1A1510' | '#2B6CB0' | '#D69E2E' | '#38A169' | '#805AD5' | '#E53E3E'
 export type BrushSize = 1 | 2 | 4 | 8 | 12 | 16
@@ -38,6 +41,7 @@ interface ToolbarProps {
   showGrid: boolean
   setShowGrid: (show: boolean) => void
   onUploadFile?: (file: File) => void
+  onDownloadImage?: () => void
 }
 
 export function Toolbar({
@@ -57,6 +61,7 @@ export function Toolbar({
   showGrid,
   setShowGrid,
   onUploadFile,
+  onDownloadImage,
 }: ToolbarProps) {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -96,6 +101,22 @@ export function Toolbar({
         title="Pen (P)"
       >
         <Pen className="h-4 w-4" />
+      </button>
+
+      <button
+        onClick={() => setMode('erase')}
+        className={`rounded-xl p-2 transition-colors ${mode === 'erase' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
+        title="Object Eraser (E)"
+      >
+        <Eraser className="h-4 w-4" />
+      </button>
+
+      <button
+        onClick={() => setMode('text')}
+        className={`rounded-xl p-2 transition-colors ${mode === 'text' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
+        title="Text (T)"
+      >
+        <Type className="h-4 w-4" />
       </button>
 
       <button
@@ -231,6 +252,16 @@ export function Toolbar({
             <Upload className="h-4 w-4" />
           </button>
         </>
+      )}
+
+      {onDownloadImage && (
+        <button
+          onClick={onDownloadImage}
+          className="text-foreground/60 hover:bg-foreground/5 hover:text-foreground rounded-xl p-2 transition-colors"
+          title="Save as Image"
+        >
+          <Download className="h-4 w-4" />
+        </button>
       )}
 
       <div className="bg-border mx-1 h-6 w-px" />

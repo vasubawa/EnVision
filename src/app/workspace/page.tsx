@@ -4,7 +4,8 @@ import { useWorkspaceStore } from '@/store/useWorkspaceStore'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { ArrowLeft, PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { ArrowLeft, MessageSquare, X } from 'lucide-react'
+import { AuthMenu } from '@/components/AuthMenu'
 import dynamic from 'next/dynamic'
 const Whiteboard = dynamic(
   () => import('@/components/workspace/Whiteboard').then((mod) => mod.Whiteboard),
@@ -15,7 +16,7 @@ import { TutorChat } from '@/components/workspace/TutorChat'
 export default function WorkspacePage() {
   const file = useWorkspaceStore((state) => state.file)
   const router = useRouter()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -47,37 +48,57 @@ export default function WorkspacePage() {
             {file?.name || 'Blank Canvas'}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <ThemeToggle />
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="hover:bg-foreground/5 text-foreground/60 hover:text-foreground rounded-lg p-2 transition-colors"
-            title={isSidebarOpen ? 'Close AI Tutor' : 'Open AI Tutor'}
-          >
-            {isSidebarOpen ? (
-              <PanelRightClose className="h-4 w-4" />
-            ) : (
-              <PanelRightOpen className="h-4 w-4" />
-            )}
-          </button>
+          <div className="bg-border hidden h-4 w-px sm:block" />
+          <AuthMenu />
         </div>
       </header>
 
-      {/* Main Workspace Area (Split Screen) */}
-      <main className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-        {/* Top/Left Side: Whiteboard */}
-        <section
-          className={`h-[60vh] md:h-auto ${isSidebarOpen ? 'md:flex-7' : 'md:flex-1'} border-border relative shrink-0 border-b bg-transparent transition-all duration-300 md:shrink md:border-r md:border-b-0`}
-        >
+      {/* Main Workspace Area (Full Screen) */}
+      <main className="relative flex flex-1 flex-col overflow-hidden">
+        <section className="relative h-full w-full bg-transparent">
           <Whiteboard />
         </section>
 
-        {/* Bottom/Right Side: AI Tutor Chat */}
-        {isSidebarOpen && (
-          <section className="bg-card/40 relative flex min-h-0 flex-1 flex-col backdrop-blur-sm transition-all duration-300 md:w-[30%] md:flex-3">
-            <TutorChat />
-          </section>
-        )}
+        {/* Floating Chat Bubble */}
+        <div
+          className={`absolute right-6 bottom-20 z-40 flex w-[380px] max-w-[calc(100vw-3rem)] flex-col shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:w-[400px] ${
+            isChatOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-8 opacity-0'
+          }`}
+          style={{ height: 'calc(100vh - 180px)', maxHeight: '700px' }}
+        >
+          <div className="bg-card border-border/50 flex h-full flex-col overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl">
+            <div className="bg-card/80 border-border/50 flex items-center justify-between border-b px-4 py-3 backdrop-blur-md">
+              <div className="flex items-center gap-2">
+                <div className="bg-primary-500/10 flex h-6 w-6 items-center justify-center rounded-full">
+                  <span className="text-primary-500 font-serif text-xs font-bold">AI</span>
+                </div>
+                <span className="font-serif text-sm font-medium">Tutor Chat</span>
+              </div>
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="text-foreground/50 hover:bg-foreground/5 hover:text-foreground rounded-full p-1.5 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="relative min-h-0 flex-1">
+              <TutorChat />
+            </div>
+          </div>
+        </div>
+
+        {/* Floating Action Button (FAB) for Chat */}
+        <button
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className={`bg-primary-500 hover:bg-primary-600 shadow-primary-500/25 absolute right-6 bottom-6 z-50 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 ${
+            isChatOpen ? 'scale-0 rotate-90 opacity-0' : 'scale-100 rotate-0 opacity-100'
+          }`}
+          title="Open AI Tutor"
+        >
+          <MessageSquare className="h-6 w-6" />
+        </button>
       </main>
     </div>
   )

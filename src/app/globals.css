@@ -22,24 +22,24 @@
   --color-primary-700: #7b341e;
 }
 
-/* Warm Parchment Light Mode */
+/* Minimalist Light Mode (Claude-inspired) */
 :root {
-  --background: #f7f4ee;
-  --foreground: #1a1510;
-  --card: #fdfbf7;
-  --card-foreground: #1a1510;
-  --border: #e2dac8;
-  --glow: rgba(192, 86, 33, 0.12);
+  --background: #fdfcfb;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --border: #e5e5e5;
+  --glow: rgba(192, 86, 33, 0.08);
 }
 
-/* Warm Ink Dark Mode */
+/* Minimalist Dark Mode (Claude-inspired) */
 .dark {
-  --background: #14120f;
-  --foreground: #ede8df;
-  --card: #1e1b16;
-  --card-foreground: #ede8df;
-  --border: #2e2a22;
-  --glow: rgba(192, 86, 33, 0.1);
+  --background: #1a1a1a;
+  --foreground: #f5f5f5;
+  --card: #222222;
+  --card-foreground: #f5f5f5;
+  --border: #333333;
+  --glow: rgba(192, 86, 33, 0.08);
 }
 
 /* View Transitions API for theme toggling */
