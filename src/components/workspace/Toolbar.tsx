@@ -16,6 +16,7 @@ import {
   Eraser,
   Type,
   Download,
+  Wand2,
 } from 'lucide-react'
 import { useState, useRef } from 'react'
 
@@ -42,6 +43,7 @@ interface ToolbarProps {
   setShowGrid: (show: boolean) => void
   onUploadFile?: (file: File) => void
   onDownloadImage?: () => void
+  onBeautify?: () => void
 }
 
 export function Toolbar({
@@ -62,6 +64,7 @@ export function Toolbar({
   setShowGrid,
   onUploadFile,
   onDownloadImage,
+  onBeautify,
 }: ToolbarProps) {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -252,6 +255,17 @@ export function Toolbar({
             <Upload className="h-4 w-4" />
           </button>
         </>
+      )}
+
+      {onBeautify && (
+        <button
+          onClick={onBeautify}
+          disabled={!hasSelection}
+          className="text-foreground/60 hover:bg-foreground/5 hover:text-foreground rounded-xl p-2 transition-colors disabled:opacity-30"
+          title="Beautify Selection (Snap to shapes)"
+        >
+          <Wand2 className="h-4 w-4" />
+        </button>
       )}
 
       {onDownloadImage && (
