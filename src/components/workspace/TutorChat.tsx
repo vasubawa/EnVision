@@ -35,10 +35,7 @@ export function TutorChat() {
   const lastAnalyzedRef = useRef<number>(0)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const transport = useMemo(
-    () => new DefaultChatTransport({ api: '/api/chat' }),
-    [],
-  )
+  const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), [])
 
   const { messages, sendMessage, status } = useChat<ChatMessage>({
     transport,
@@ -87,10 +84,7 @@ export function TutorChat() {
       return
     }
 
-    sendMessage(
-      { text: input, metadata: { createdAt: Date.now() } },
-      { body: { canvasBase64 } },
-    )
+    sendMessage({ text: input, metadata: { createdAt: Date.now() } }, { body: { canvasBase64 } })
     setInput('')
   }
 
@@ -197,21 +191,16 @@ export function TutorChat() {
 
   return (
     <div className="relative flex h-full w-full flex-col bg-transparent">
-      <div
-        ref={scrollRef}
-        className="flex flex-1 flex-col gap-6 overflow-y-auto scroll-smooth p-6"
-      >
+      <div ref={scrollRef} className="flex flex-1 flex-col gap-6 overflow-y-auto scroll-smooth p-6">
         {/* Welcome message */}
         <div className="flex gap-4">
           <div className="bg-primary-500/10 border-primary-500/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
-            <span className="text-primary-500 font-serif text-sm font-bold">
-              AI
-            </span>
+            <span className="text-primary-500 font-serif text-sm font-bold">AI</span>
           </div>
           <div className="mt-1 flex-1">
             <p className="text-foreground/80 bg-card/60 border-border rounded-2xl rounded-tl-none border p-4 text-sm leading-relaxed shadow-sm backdrop-blur-sm">
-              I&apos;m ready! Start drawing your solution on the whiteboard. You
-              can ask me questions anytime or click &quot;Check my work&quot;.
+              I&apos;m ready! Start drawing your solution on the whiteboard. You can ask me
+              questions anytime or click &quot;Check my work&quot;.
             </p>
           </div>
         </div>
@@ -224,9 +213,7 @@ export function TutorChat() {
           >
             {entry.role === 'assistant' && (
               <div className="bg-primary-500/10 border-primary-500/20 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
-                <span className="text-primary-500 font-serif text-sm font-bold">
-                  AI
-                </span>
+                <span className="text-primary-500 font-serif text-sm font-bold">AI</span>
               </div>
             )}
 
@@ -259,9 +246,7 @@ export function TutorChat() {
         {(isLoading || isAnalyzing) && (
           <div className="flex gap-4">
             <div className="bg-primary-500/10 border-primary-500/20 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
-              <span className="text-primary-500 font-serif text-sm font-bold">
-                AI
-              </span>
+              <span className="text-primary-500 font-serif text-sm font-bold">AI</span>
             </div>
             <div className="bg-card/60 border-border text-foreground/60 flex items-center gap-2 rounded-2xl rounded-tl-none border p-4 text-sm backdrop-blur-sm">
               <Loader2 className="h-4 w-4 animate-spin" />

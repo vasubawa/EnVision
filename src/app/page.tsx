@@ -15,9 +15,7 @@ export default function LandingPage() {
       <div className="absolute top-0 right-0 left-0 z-20 flex items-center justify-between p-5">
         <div className="text-foreground flex items-center gap-2.5">
           <EnVisionMark className="text-primary-500 h-7 w-7" />
-          <span className="font-serif text-[1.1rem] font-bold tracking-tight">
-            EnVision
-          </span>
+          <span className="font-serif text-[1.1rem] font-bold tracking-tight">EnVision</span>
         </div>
         <ThemeToggle />
       </div>
@@ -33,9 +31,9 @@ export default function LandingPage() {
 
         {/* Editorial subtitle with Typewriter */}
         <div className="sr-only">
-          Deconstruct complex Physics problems, Visualize Organic Chemistry
-          mechanisms, Map out Calculus derivations, Understand Data Structures &
-          Algorithms, Decode advanced Circuit Analysis
+          Deconstruct complex Physics problems, Visualize Organic Chemistry mechanisms, Map out
+          Calculus derivations, Understand Data Structures & Algorithms, Decode advanced Circuit
+          Analysis
         </div>
         <div
           aria-hidden="true"

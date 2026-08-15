@@ -4,11 +4,9 @@
 
 @theme {
   --font-sans:
-    var(--font-inter), ui-sans-serif, system-ui, sans-serif,
-    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif:
-    var(--font-lora), ui-serif, Georgia, Cambria, 'Times New Roman', Times,
-    serif;
+    var(--font-inter), ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: var(--font-lora), ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -77,31 +75,15 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(
-      ellipse 80% 60% at 20% 10%,
-      rgba(251, 240, 210, 0.18) 0%,
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 60% 50% at 80% 90%,
-      rgba(192, 86, 33, 0.03) 0%,
-      transparent 60%
-    );
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(251, 240, 210, 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(192, 86, 33, 0.03) 0%, transparent 60%);
 }
 
 .dark body::before,
 body:is(.dark *) {
   background:
-    radial-gradient(
-      ellipse 80% 60% at 20% 10%,
-      rgba(80, 50, 20, 0.12) 0%,
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 60% 50% at 80% 90%,
-      rgba(192, 86, 33, 0.04) 0%,
-      transparent 60%
-    );
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(80, 50, 20, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(192, 86, 33, 0.04) 0%, transparent 60%);
 }
 
 /* Card: editorial restraint (flat, quiet) */

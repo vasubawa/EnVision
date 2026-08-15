@@ -106,6 +106,7 @@ export function Whiteboard() {
               // Don't send to back if it's manually added via toolbar so it doesn't hide behind existing things
               saveHistory()
             })
+            // eslint-disable-next-line no-console
             .catch(console.error)
         }
         reader.readAsDataURL(fileToLoad)
@@ -149,6 +150,7 @@ export function Whiteboard() {
             canvas.add(img)
             saveHistory()
           } catch (err) {
+            // eslint-disable-next-line no-console
             console.error('Error loading PDF', err)
           }
         }
@@ -196,16 +198,14 @@ export function Whiteboard() {
       setTimeout(() => {
         if (fabricRef.current) {
           const objs = fabricRef.current.getObjects()
-          if (objs.length > 0)
-            fabricRef.current.sendObjectToBack(objs[objs.length - 1])
+          if (objs.length > 0) fabricRef.current.sendObjectToBack(objs[objs.length - 1])
         }
       }, 500)
     }
 
     // --- INFINITE DOT GRID ---
     canvas.on('after:render', function () {
-      if (document.documentElement.getAttribute('data-show-grid') !== 'true')
-        return
+      if (document.documentElement.getAttribute('data-show-grid') !== 'true') return
 
       const ctx = canvas.contextContainer
       const vpt = canvas.viewportTransform!
@@ -233,21 +233,11 @@ export function Whiteboard() {
       ctx.save()
       ctx.beginPath()
       const isDark = document.documentElement.classList.contains('dark')
-      ctx.fillStyle = isDark
-        ? 'rgba(255, 255, 255, 0.12)'
-        : 'rgba(0, 0, 0, 0.08)'
+      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
 
       // Draw dots slightly out of bounds to ensure seamless panning
-      for (
-        let x = offsetX - screenStep;
-        x < canvas.width! + screenStep;
-        x += screenStep
-      ) {
-        for (
-          let y = offsetY - screenStep;
-          y < canvas.height! + screenStep;
-          y += screenStep
-        ) {
+      for (let x = offsetX - screenStep; x < canvas.width! + screenStep; x += screenStep) {
+        for (let y = offsetY - screenStep; y < canvas.height! + screenStep; y += screenStep) {
           ctx.moveTo(x, y)
           ctx.arc(x, y, 1.5, 0, Math.PI * 2)
         }
@@ -277,12 +267,9 @@ export function Whiteboard() {
       origY = 0
 
     // Use a ref to access current mode inside event listeners without re-binding them
-    const getMode = () =>
-      document.documentElement.getAttribute('data-draw-mode') || 'draw'
-    const getColor = () =>
-      document.documentElement.getAttribute('data-draw-color') || '#C05621'
-    const getSize = () =>
-      parseInt(document.documentElement.getAttribute('data-draw-size') || '4')
+    const getMode = () => document.documentElement.getAttribute('data-draw-mode') || 'draw'
+    const getColor = () => document.documentElement.getAttribute('data-draw-color') || '#C05621'
+    const getSize = () => parseInt(document.documentElement.getAttribute('data-draw-size') || '4')
 
     canvas.on('mouse:down', function (opt) {
       const evt = opt.e as MouseEvent | TouchEvent
@@ -398,9 +385,7 @@ export function Whiteboard() {
             top: Math.min(pointer.y, origY),
           })
         } else if (currentMode === 'circle') {
-          const radius =
-            Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) /
-            2
+          const radius = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 2
           shapeObj.set({ radius: radius })
           shapeObj.set({
             left: Math.min(pointer.x, origX),
@@ -468,10 +453,7 @@ export function Whiteboard() {
     document.documentElement.setAttribute('data-draw-mode', mode)
     document.documentElement.setAttribute('data-draw-color', color)
     document.documentElement.setAttribute('data-draw-size', size.toString())
-    document.documentElement.setAttribute(
-      'data-show-grid',
-      showGrid ? 'true' : 'false',
-    )
+    document.documentElement.setAttribute('data-show-grid', showGrid ? 'true' : 'false')
 
     if (!fabricRef.current) return
     const canvas = fabricRef.current

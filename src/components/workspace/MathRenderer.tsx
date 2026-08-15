@@ -95,20 +95,14 @@ const LATEX_CHAR_RE = /\\[a-zA-Z]+|[{}^_]/
 function wrapBareLatex(text: string): string {
   // Step 1 — protect already-delimited spans with placeholders
   const spans: string[] = []
-  const protected_ = text.replace(
-    /\$\$[\s\S]*?\$\$|\$(?!\$)[^$\n]*?\$/g,
-    (m) => {
-      spans.push(m)
-      return `\x00${spans.length - 1}\x00`
-    },
-  )
+  const protected_ = text.replace(/\$\$[\s\S]*?\$\$|\$(?!\$)[^$\n]*?\$/g, (m) => {
+    spans.push(m)
+    return `\x00${spans.length - 1}\x00`
+  })
 
   // Quick exit: no bare LaTeX commands present
   if (!/\\[a-zA-Z]/.test(protected_)) {
-    return spans.reduce(
-      (s, span, i) => s.replace(`\x00${i}\x00`, span),
-      protected_,
-    )
+    return spans.reduce((s, span, i) => s.replace(`\x00${i}\x00`, span), protected_)
   }
 
   // Step 2 — token-based state machine
@@ -119,12 +113,24 @@ function wrapBareLatex(text: string): string {
 
   const flushMath = (...extra: string[]) => {
     if (mathBuf.length) {
+      // Find trailing spaces
+      const trailingSpaces: string[] = []
+      while (mathBuf.length && /^\s+$/.test(mathBuf[mathBuf.length - 1])) {
+        trailingSpaces.unshift(mathBuf.pop()!)
+      }
+
       const expr = mathBuf.join('').trim()
-      if (expr && /\\[a-zA-Z]/.test(expr)) {
+      if (
+        expr &&
+        (/\\[a-zA-Z]/.test(expr) ||
+          /[{}^_]/.test(expr) ||
+          (/[=+\-*/]/.test(expr) && /[xyz]/.test(expr)))
+      ) {
         out.push(`$${expr}$`)
       } else {
         out.push(...mathBuf)
       }
+      out.push(...trailingSpaces)
       mathBuf = []
     }
     out.push(...extra)
@@ -147,8 +153,7 @@ function wrapBareLatex(text: string): string {
     }
 
     const hasLatex = LATEX_CHAR_RE.test(tok)
-    const isProseWord =
-      /^[a-zA-Z]+$/.test(tok) && PROSE_WORDS.has(tok.toLowerCase())
+    const isProseWord = /^[a-zA-Z]+$/.test(tok) && PROSE_WORDS.has(tok.toLowerCase())
     const isPunct = /^[.!?;:]/.test(tok)
 
     if (hasLatex) {
@@ -165,17 +170,13 @@ function wrapBareLatex(text: string): string {
             continue
           }
           // Steal: single-letter variables, digits, operators, parens, equals, commas, dots
-          if (
-            /^[a-zA-Z0-9=+\-*/()[\]|.,]$/.test(prev) ||
-            /^[a-zA-Z]{1,3}$/.test(prev)
-          ) {
+          if (/^[a-zA-Z0-9=+\-*/()[\]|.,]$/.test(prev) || /^[a-zA-Z]{1,3}$/.test(prev)) {
             stolen.unshift(prev)
             k--
             stolen_non_ws++
           } else break
         }
-        if (stolen.length && stolen_non_ws > 0)
-          out.splice(out.length - stolen.length)
+        if (stolen.length && stolen_non_ws > 0) out.splice(out.length - stolen.length)
         mathBuf.push(...stolen)
         inMath = true
       }
@@ -205,10 +206,7 @@ function wrapBareLatex(text: string): string {
   return result
 }
 
-export const MathRenderer: React.FC<MathRendererProps> = ({
-  content,
-  className = '',
-}) => {
+export const MathRenderer: React.FC<MathRendererProps> = ({ content, className = '' }) => {
   let preprocessed = wrapBareLatex(content)
 
   preprocessed = preprocessed.replace(/\\(i*nt|oint)([^\s\\])/g, '\\$1 $2')

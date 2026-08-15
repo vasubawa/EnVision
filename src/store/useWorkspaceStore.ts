@@ -29,8 +29,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   setFile: (file) => set({ file }),
 
   chatHistory: [],
-  addChatEntry: (entry) =>
-    set((state) => ({ chatHistory: [...state.chatHistory, entry] })),
+  addChatEntry: (entry) => set((state) => ({ chatHistory: [...state.chatHistory, entry] })),
   clearChat: () => set({ chatHistory: [] }),
 
   getCanvasImage: null,

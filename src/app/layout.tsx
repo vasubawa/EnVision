@@ -27,11 +27,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${inter.variable} h-full antialiased`}
-    >
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
       <body
         className={`${inter.variable} ${lora.variable} bg-background text-foreground antialiased transition-colors duration-500`}
       >

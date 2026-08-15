@@ -7,8 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { ArrowLeft, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import dynamic from 'next/dynamic'
 const Whiteboard = dynamic(
-  () =>
-    import('@/components/workspace/Whiteboard').then((mod) => mod.Whiteboard),
+  () => import('@/components/workspace/Whiteboard').then((mod) => mod.Whiteboard),
   { ssr: false },
 )
 import { TutorChat } from '@/components/workspace/TutorChat'
@@ -28,11 +27,7 @@ export default function WorkspacePage() {
   }, [])
 
   const handleLeave = () => {
-    if (
-      window.confirm(
-        'Are you sure you want to leave? Your canvas progress will be lost.',
-      )
-    ) {
+    if (window.confirm('Are you sure you want to leave? Your canvas progress will be lost.')) {
       router.push('/')
     }
   }
