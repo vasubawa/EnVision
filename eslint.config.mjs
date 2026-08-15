@@ -14,7 +14,25 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     // Static assets — vendored/minified files (e.g. the pdf.js worker) aren't source.
     'public/**',
+    // Local dev artifacts.
+    'temp/**',
   ]),
+  {
+    rules: {
+      // Warn on console.log so you notice debug logs, but don't block commits.
+      // Use  // eslint-disable-next-line no-console  for intentional logging.
+      'no-console': 'warn',
+      // Allow unused vars prefixed with _ (convention for "intentionally unused").
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
 ])
 
 export default eslintConfig

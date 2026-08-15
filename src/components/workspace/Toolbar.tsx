@@ -18,13 +18,7 @@ import { useState, useRef } from 'react'
 
 export type DrawingMode = 'draw' | 'select' | 'pan' | 'rect' | 'circle' | 'line'
 export type BrushColor =
-  | '#C05621'
-  | '#1A1510'
-  | '#2B6CB0'
-  | '#D69E2E'
-  | '#38A169'
-  | '#805AD5'
-  | '#E53E3E'
+  '#C05621' | '#1A1510' | '#2B6CB0' | '#D69E2E' | '#38A169' | '#805AD5' | '#E53E3E'
 export type BrushSize = 1 | 2 | 4 | 8 | 12 | 16
 
 interface ToolbarProps {
@@ -252,9 +246,7 @@ export function Toolbar({
 
         {showClearConfirm && (
           <div className="bg-card border-border min-w-160px animate-in fade-in zoom-in-95 absolute top-full left-1/2 mt-2 flex -translate-x-1/2 flex-col gap-2 rounded-xl border p-3 shadow-lg duration-100">
-            <p className="text-foreground text-center text-sm font-medium">
-              Clear canvas?
-            </p>
+            <p className="text-foreground text-center text-sm font-medium">Clear canvas?</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowClearConfirm(false)}

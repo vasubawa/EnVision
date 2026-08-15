@@ -83,9 +83,7 @@ export function UploadDropzone() {
             >
               {isDragActive ? 'Release to drop…' : 'Drop your worksheet here'}
             </p>
-            <p className="text-foreground/35 font-sans text-sm">
-              PDF, PNG, JPG or WEBP accepted
-            </p>
+            <p className="text-foreground/35 font-sans text-sm">PDF, PNG, JPG or WEBP accepted</p>
           </div>
 
           {/* Action buttons */}
@@ -124,15 +122,10 @@ export function UploadDropzone() {
           {/* File info row */}
           <div className="flex items-center gap-4">
             <div className="bg-primary-500/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
-              <FileText
-                className="text-primary-500 h-5 w-5"
-                strokeWidth={1.5}
-              />
+              <FileText className="text-primary-500 h-5 w-5" strokeWidth={1.5} />
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-foreground truncate text-sm font-medium">
-                {file.name}
-              </p>
+              <p className="text-foreground truncate text-sm font-medium">{file.name}</p>
               <p className="text-foreground/40 mt-0.5 text-xs">
                 {formatFileSize(file.size)} · Ready to process
               </p>
