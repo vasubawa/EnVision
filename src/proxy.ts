@@ -31,7 +31,24 @@ export async function proxy(request: NextRequest) {
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/workspace')
+  const isAuthRoute = request.nextUrl.pathname === '/login'
+
+  if (isProtectedRoute && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  if (isAuthRoute && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/workspace'
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }
