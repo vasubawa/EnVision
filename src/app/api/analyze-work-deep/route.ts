@@ -16,7 +16,7 @@ function isFeedbackShape(obj: unknown): obj is Feedback {
   )
 }
 
-export const maxDuration = 120
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
