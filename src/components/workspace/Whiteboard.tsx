@@ -261,6 +261,8 @@ export function Whiteboard() {
     let isPanning = false
     let lastPosX = 0
     let lastPosY = 0
+    let initialTouchDistance = 0
+    let lastTouchCenter: { x: number; y: number } | null = null
 
     let shapeObj: fabric.Object | null = null
     let origX = 0,
@@ -317,8 +319,25 @@ export function Whiteboard() {
       const isMiddleClick = evt instanceof MouseEvent && evt.button === 1
       const isAltKey = evt instanceof MouseEvent && evt.altKey
       const isMultiTouch = evt instanceof TouchEvent && evt.touches.length > 1
+
+      // Multi-touch Pan/Zoom
+      if (isMultiTouch && evt instanceof TouchEvent) {
+        isPanning = true
+        canvas.selection = false
+        canvas.isDrawingMode = false // Temporarily disable drawing
+        const t1 = evt.touches[0]
+        const t2 = evt.touches[1]
+        initialTouchDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
+        lastTouchCenter = {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2,
+        }
+        canvas.defaultCursor = 'grabbing'
+        return
+      }
+
       // Middle click, Alt, or 'pan' mode for panning
-      if (isMiddleClick || isAltKey || currentMode === 'pan' || isMultiTouch) {
+      if (isMiddleClick || isAltKey || currentMode === 'pan') {
         isPanning = true
         canvas.selection = false
         lastPosX = getClientX(evt)
@@ -383,6 +402,38 @@ export function Whiteboard() {
       if (isPanning) {
         const vpt = canvas.viewportTransform
         if (vpt) {
+          // Multi-touch Zoom/Pan
+          if (evt instanceof TouchEvent && evt.touches.length > 1) {
+            evt.preventDefault() // prevent scroll
+            const t1 = evt.touches[0]
+            const t2 = evt.touches[1]
+            const currentDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
+            const currentCenter = {
+              x: (t1.clientX + t2.clientX) / 2,
+              y: (t1.clientY + t2.clientY) / 2,
+            }
+
+            // Pinch to Zoom
+            if (initialTouchDistance > 0) {
+              const scale = currentDistance / initialTouchDistance
+              let zoom = canvas.getZoom() * scale
+              if (zoom > 500) zoom = 500
+              if (zoom < 0.01) zoom = 0.01
+              canvas.zoomToPoint(new fabric.Point(currentCenter.x, currentCenter.y), zoom)
+            }
+            initialTouchDistance = currentDistance
+
+            // Pan
+            if (lastTouchCenter) {
+              vpt[4] += currentCenter.x - lastTouchCenter.x
+              vpt[5] += currentCenter.y - lastTouchCenter.y
+              canvas.requestRenderAll()
+            }
+            lastTouchCenter = currentCenter
+            return
+          }
+
+          // Single pointer/mouse pan
           const cx = getClientX(evt)
           const cy = getClientY(evt)
 
@@ -435,8 +486,11 @@ export function Whiteboard() {
       if (isPanning) {
         canvas.setViewportTransform(canvas.viewportTransform!)
         isPanning = false
+        initialTouchDistance = 0
+        lastTouchCenter = null
         canvas.defaultCursor = getMode() === 'draw' ? 'crosshair' : 'default'
         if (getMode() === 'select') canvas.selection = true
+        if (getMode() === 'draw') canvas.isDrawingMode = true
       }
 
       if (shapeObj) {
@@ -533,6 +587,78 @@ export function Whiteboard() {
     }
   }, [saveHistory])
 
+  const handleBeautify = useCallback(() => {
+    if (!fabricRef.current) return
+    const activeObjects = fabricRef.current.getActiveObjects()
+    if (activeObjects.length === 0) return
+
+    let changed = false
+    activeObjects.forEach((obj) => {
+      // Only beautify paths (hand-drawn lines)
+      if (obj.type === 'path') {
+        const pathObj = obj as fabric.Path
+        const bounds = pathObj.getBoundingRect()
+        const width = bounds.width
+        const height = bounds.height
+
+        // Skip tiny dots/noise
+        if (width < 5 && height < 5) return
+
+        changed = true
+
+        // If it's very thin in one dimension, it's likely meant to be a straight line
+        if (width < 20 || height < 20) {
+          const line = new fabric.Line(
+            [bounds.left, bounds.top, bounds.left + width, bounds.top + height],
+            {
+              stroke: pathObj.stroke,
+              strokeWidth: pathObj.strokeWidth,
+            },
+          )
+          fabricRef.current!.add(line)
+          fabricRef.current!.remove(pathObj)
+          return
+        }
+
+        // If aspect ratio is close to 1:1, it's likely a circle or square
+        const aspectRatio = width / height
+        if (aspectRatio > 0.75 && aspectRatio < 1.33) {
+          const radius = Math.max(width, height) / 2
+          const circle = new fabric.Circle({
+            left: bounds.left,
+            top: bounds.top,
+            radius: radius,
+            stroke: pathObj.stroke,
+            strokeWidth: pathObj.strokeWidth,
+            fill: 'transparent',
+          })
+          fabricRef.current!.add(circle)
+          fabricRef.current!.remove(pathObj)
+        } else {
+          // Otherwise assume rectangle
+          const rect = new fabric.Rect({
+            left: bounds.left,
+            top: bounds.top,
+            width: width,
+            height: height,
+            stroke: pathObj.stroke,
+            strokeWidth: pathObj.strokeWidth,
+            fill: 'transparent',
+          })
+          fabricRef.current!.add(rect)
+          fabricRef.current!.remove(pathObj)
+        }
+      }
+    })
+
+    if (changed) {
+      fabricRef.current.discardActiveObject()
+      fabricRef.current.requestRenderAll()
+      setHasSelection(false)
+      saveHistory()
+    }
+  }, [saveHistory])
+
   const handleClear = useCallback(() => {
     if (!fabricRef.current) return
     const bg = fabricRef.current.backgroundImage
@@ -626,6 +752,7 @@ export function Whiteboard() {
         setShowGrid={setShowGrid}
         onUploadFile={handleAddFile}
         onDownloadImage={handleDownloadImage}
+        onBeautify={handleBeautify}
       />
       <div className="absolute inset-0 z-10">
         <canvas ref={canvasRef} />
