@@ -1,43 +1,46 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-serif: var(--font-lora), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif:
+    var(--font-lora), ui-serif, Georgia, Cambria, 'Times New Roman', Times,
+    serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-border: var(--border);
-  
+
   /* EnVision Editorial Terra Cotta — warm, restrained, humanistic */
-  --color-primary-300: #E29B7E;
-  --color-primary-400: #D97757;
-  --color-primary-500: #C05621;
-  --color-primary-600: #9C4221;
-  --color-primary-700: #7B341E;
+  --color-primary-300: #e29b7e;
+  --color-primary-400: #d97757;
+  --color-primary-500: #c05621;
+  --color-primary-600: #9c4221;
+  --color-primary-700: #7b341e;
 }
 
 /* Warm Parchment Light Mode */
 :root {
-  --background: #F7F4EE;
-  --foreground: #1A1510;
-  --card: #FDFBF7;
-  --card-foreground: #1A1510;
-  --border: #E2DAC8;
+  --background: #f7f4ee;
+  --foreground: #1a1510;
+  --card: #fdfbf7;
+  --card-foreground: #1a1510;
+  --border: #e2dac8;
   --glow: rgba(192, 86, 33, 0.12);
 }
 
 /* Warm Ink Dark Mode */
 .dark {
-  --background: #14120F;
-  --foreground: #EDE8DF;
-  --card: #1E1B16;
-  --card-foreground: #EDE8DF;
-  --border: #2E2A22;
+  --background: #14120f;
+  --foreground: #ede8df;
+  --card: #1e1b16;
+  --card-foreground: #ede8df;
+  --border: #2e2a22;
   --glow: rgba(192, 86, 33, 0.1);
 }
 
@@ -47,10 +50,18 @@
   animation: none;
   mix-blend-mode: normal;
 }
-::view-transition-old(root) { z-index: 1; }
-::view-transition-new(root) { z-index: 2; }
-.dark::view-transition-old(root) { z-index: 1; }
-.dark::view-transition-new(root) { z-index: 2; }
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+.dark::view-transition-old(root) {
+  z-index: 1;
+}
+.dark::view-transition-new(root) {
+  z-index: 2;
+}
 
 body {
   color: var(--foreground);
@@ -66,15 +77,31 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(251, 240, 210, 0.18) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(192, 86, 33, 0.03) 0%, transparent 60%);
+    radial-gradient(
+      ellipse 80% 60% at 20% 10%,
+      rgba(251, 240, 210, 0.18) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 80% 90%,
+      rgba(192, 86, 33, 0.03) 0%,
+      transparent 60%
+    );
 }
 
 .dark body::before,
 body:is(.dark *) {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(80, 50, 20, 0.12) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(192, 86, 33, 0.04) 0%, transparent 60%);
+    radial-gradient(
+      ellipse 80% 60% at 20% 10%,
+      rgba(80, 50, 20, 0.12) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 80% 90%,
+      rgba(192, 86, 33, 0.04) 0%,
+      transparent 60%
+    );
 }
 
 /* Card: editorial restraint (flat, quiet) */
@@ -82,15 +109,18 @@ body:is(.dark *) {
   background-color: var(--card);
   border-radius: 1rem;
   border: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .envision-card:hover,
 .envision-card:focus-within {
   border-color: rgba(192, 86, 33, 0.3);
-  background-color: rgba(0,0,0,0.01);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  background-color: rgba(0, 0, 0, 0.01);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 /* Ink Bleed Hover — legacy class kept for backward compatibility */
@@ -106,24 +136,40 @@ body:is(.dark *) {
 
 /* Custom Animations */
 @keyframes float-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
 }
 .animate-float-slow {
   animation: float-slow 12s ease-in-out infinite;
 }
 
 @keyframes subtle-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
-  50% { box-shadow: 0 0 0 8px rgba(13, 148, 136, 0.06); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(13, 148, 136, 0.06);
+  }
 }
 .animate-subtle-pulse {
   animation: subtle-pulse 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .animate-fade-in-up {
   animation: fade-in-up 0.4s ease-out forwards;

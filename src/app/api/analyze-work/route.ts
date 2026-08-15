@@ -1,10 +1,15 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models';
-import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts';
+import { NextResponse, NextRequest } from 'next/server'
+import {
+  MODELS,
+  apiKey,
+  stripThinking,
+  type ChatCompletionResponse,
+} from '@/lib/models'
+import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 
 interface Feedback {
-  isCorrect: boolean;
-  suggestion: string;
+  isCorrect: boolean
+  suggestion: string
 }
 
 function isFeedbackShape(obj: unknown): obj is Feedback {
@@ -13,163 +18,205 @@ function isFeedbackShape(obj: unknown): obj is Feedback {
     obj !== null &&
     typeof (obj as Feedback).suggestion === 'string' &&
     typeof (obj as Feedback).isCorrect === 'boolean'
-  );
+  )
 }
 // Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined
-export const maxDuration = 75;
+export const maxDuration = 75
 
 export async function POST(req: NextRequest) {
   try {
-    const { canvasBase64 } = await req.json();
+    const { canvasBase64 } = await req.json()
 
     if (!canvasBase64) {
-      return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing canvas image' },
+        { status: 400 },
+      )
     }
 
     // Step 1: Vision Transcription (45s timeout — reasoning model needs room to think)
-    const visionAbort = new AbortController();
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 45_000);
+    const visionAbort = new AbortController()
+    const visionTimeout = setTimeout(() => visionAbort.abort(), 45_000)
 
-    let visionRes: ChatCompletionResponse;
+    let visionRes: ChatCompletionResponse
     try {
-      const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: visionAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey(MODELS.vision)}`
+      const visionReq = await fetch(
+        `${MODELS.vision.apiBase}/chat/completions`,
+        {
+          method: 'POST',
+          signal: visionAbort.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey(MODELS.vision)}`,
+          },
+          body: JSON.stringify({
+            model: MODELS.vision.model,
+            max_tokens: 2000,
+            reasoning_budget: 4096,
+            temperature: 0.6,
+            top_p: 0.95,
+            response_format: { type: 'json_object' },
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: VISION_TRANSCRIBE_PROMPT,
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: canvasBase64 },
+                  },
+                ],
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model: MODELS.vision.model,
-          max_tokens: 2000,
-          reasoning_budget: 4096,
-          temperature: 0.6,
-          top_p: 0.95,
-          response_format: { type: 'json_object' },
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: VISION_TRANSCRIBE_PROMPT
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: canvasBase64 }
-                }
-              ]
-            }
-          ]
-        })
-      });
-      if (!visionReq.ok) throw new Error(`Vision API error: ${await visionReq.text()}`);
-      visionRes = await visionReq.json();
+      )
+      if (!visionReq.ok)
+        throw new Error(`Vision API error: ${await visionReq.text()}`)
+      visionRes = await visionReq.json()
     } finally {
-      clearTimeout(visionTimeout);
+      clearTimeout(visionTimeout)
     }
-    const canvasDescription = extractTranscription(visionRes.choices[0].message.content, stripThinking);
+    const canvasDescription = extractTranscription(
+      visionRes.choices[0].message.content,
+      stripThinking,
+    )
 
     // Step 2: Socratic Tutor (25s timeout)
-    const groqAbort = new AbortController();
-    const groqTimeout = setTimeout(() => groqAbort.abort(), 25_000);
+    const groqAbort = new AbortController()
+    const groqTimeout = setTimeout(() => groqAbort.abort(), 25_000)
 
-    let groqRes: ChatCompletionResponse;
+    let groqRes: ChatCompletionResponse
     try {
-      const groqReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: groqAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey(MODELS.reasoning)}`
+      const groqReq = await fetch(
+        `${MODELS.reasoning.apiBase}/chat/completions`,
+        {
+          method: 'POST',
+          signal: groqAbort.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey(MODELS.reasoning)}`,
+          },
+          body: JSON.stringify({
+            model: MODELS.reasoning.model,
+            max_tokens: 200,
+            messages: [
+              {
+                role: 'user',
+                content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`,
+              },
+            ],
+            response_format: { type: 'json_object' },
+          }),
         },
-        body: JSON.stringify({
-          model: MODELS.reasoning.model,
-          max_tokens: 200,
-          messages: [{
-            role: 'user',
-            content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`
-          }],
-          response_format: { type: "json_object" }
-        })
-      });
-      if (!groqReq.ok) throw new Error(`Groq API error: ${await groqReq.text()}`);
-      groqRes = await groqReq.json();
+      )
+      if (!groqReq.ok)
+        throw new Error(`Groq API error: ${await groqReq.text()}`)
+      groqRes = await groqReq.json()
     } finally {
-      clearTimeout(groqTimeout);
+      clearTimeout(groqTimeout)
     }
-    const rawText = groqRes.choices[0].message.content;
+    const rawText = groqRes.choices[0].message.content
 
-    console.log('[analyze-work] raw LLM output:', rawText);
+    console.log('[analyze-work] raw LLM output:', rawText)
 
-    let parsedResult: Feedback | null = null;
+    let parsedResult: Feedback | null = null
 
     const extractResult = (obj: unknown): Feedback | null => {
       if (isFeedbackShape(obj)) {
         let suggestion = obj.suggestion
-          .replace(/\r\n|\r|\n/g, ' ')    
-          .replace(/\\n/g, ' ')            
-          .replace(/\s{2,}/g, ' ')         
-          .trim();
+          .replace(/\r\n|\r|\n/g, ' ')
+          .replace(/\\n/g, ' ')
+          .replace(/\s{2,}/g, ' ')
+          .trim()
         if (suggestion.trimStart().startsWith('{')) {
           try {
-            const inner: unknown = JSON.parse(suggestion);
-            if (typeof inner === 'object' && inner !== null && typeof (inner as { suggestion?: unknown }).suggestion === 'string') {
-              const innerObj = inner as { suggestion: string; isCorrect?: unknown };
-              suggestion = innerObj.suggestion.replace(/\r\n|\r|\n/g, ' ').replace(/\\n/g, ' ').trim();
-              return { isCorrect: !!innerObj.isCorrect, suggestion };
+            const inner: unknown = JSON.parse(suggestion)
+            if (
+              typeof inner === 'object' &&
+              inner !== null &&
+              typeof (inner as { suggestion?: unknown }).suggestion === 'string'
+            ) {
+              const innerObj = inner as {
+                suggestion: string
+                isCorrect?: unknown
+              }
+              suggestion = innerObj.suggestion
+                .replace(/\r\n|\r|\n/g, ' ')
+                .replace(/\\n/g, ' ')
+                .trim()
+              return { isCorrect: !!innerObj.isCorrect, suggestion }
             }
-          } catch { /* not nested JSON, use as-is */ }
+          } catch {
+            /* not nested JSON, use as-is */
+          }
         }
-        return { isCorrect: obj.isCorrect, suggestion };
+        return { isCorrect: obj.isCorrect, suggestion }
       }
-      return null;
-    };
+      return null
+    }
 
     // Stage 1: direct JSON parse of the raw response
     try {
-      const obj = JSON.parse(rawText);
-      parsedResult = extractResult(obj);
-    } catch { /* continue to next stage */ }
+      const obj = JSON.parse(rawText)
+      parsedResult = extractResult(obj)
+    } catch {
+      /* continue to next stage */
+    }
 
     // Stage 2: strip markdown fences and try again
     if (!parsedResult) {
       try {
-        const stripped = rawText.replace(/```json|```/g, '').trim();
-        const obj = JSON.parse(stripped);
-        parsedResult = extractResult(obj);
-      } catch { /* continue */ }
+        const stripped = rawText.replace(/```json|```/g, '').trim()
+        const obj = JSON.parse(stripped)
+        parsedResult = extractResult(obj)
+      } catch {
+        /* continue */
+      }
     }
 
     // Stage 3: extract the first JSON object block from anywhere in the text
     if (!parsedResult) {
       try {
-        const match = rawText.match(/\{[\s\S]*\}/);
+        const match = rawText.match(/\{[\s\S]*\}/)
         if (match) {
-          const obj = JSON.parse(match[0]);
-          parsedResult = extractResult(obj);
+          const obj = JSON.parse(match[0])
+          parsedResult = extractResult(obj)
         }
-      } catch { /* continue */ }
+      } catch {
+        /* continue */
+      }
     }
 
     // Stage 4: last-resort regex strip — pull the suggestion string out manually
     if (!parsedResult) {
-      console.warn('[analyze-work] All JSON parse stages failed, using regex strip');
-      const isCorrectMatch = rawText.match(/"isCorrect"\s*:\s*(true|false)/);
-      const suggestionMatch = rawText.match(/"suggestion"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+      console.warn(
+        '[analyze-work] All JSON parse stages failed, using regex strip',
+      )
+      const isCorrectMatch = rawText.match(/"isCorrect"\s*:\s*(true|false)/)
+      const suggestionMatch = rawText.match(
+        /"suggestion"\s*:\s*"([\s\S]*?)(?<!\\)"/,
+      )
       const suggestion = suggestionMatch
-        ? suggestionMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"').replace(/\s{2,}/g, ' ').trim()
-        : rawText.replace(/[{}"\\n]/g, ' ').trim();
+        ? suggestionMatch[1]
+            .replace(/\\n/g, ' ')
+            .replace(/\\"/g, '"')
+            .replace(/\s{2,}/g, ' ')
+            .trim()
+        : rawText.replace(/[{}"\\n]/g, ' ').trim()
       parsedResult = {
         isCorrect: isCorrectMatch?.[1] === 'true',
         suggestion,
-      };
+      }
     }
 
-    return NextResponse.json(parsedResult);
+    return NextResponse.json(parsedResult)
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('analyze-work error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('analyze-work error:', error)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

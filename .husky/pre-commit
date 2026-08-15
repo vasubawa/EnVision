@@ -1,0 +1,13 @@
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if [ "$branch" = "main" ]; then
+  echo "Direct commits to main are not allowed. Create a feature branch instead."
+  exit 1
+fi
+
+if git diff --cached | grep -qE '(sk-or-v1-[A-Za-z0-9]{10,}|gsk_[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----)'; then
+  echo "Possible secret detected in staged changes. Commit blocked."
+  echo "If this is a false positive, review the match and adjust .husky/pre-commit."
+  exit 1
+fi
+
+pnpm exec lint-staged
