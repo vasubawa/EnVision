@@ -261,6 +261,8 @@ export function Whiteboard() {
     let isPanning = false
     let lastPosX = 0
     let lastPosY = 0
+    let initialTouchDistance = 0
+    let lastTouchCenter: { x: number; y: number } | null = null
 
     let shapeObj: fabric.Object | null = null
     let origX = 0,
@@ -284,11 +286,58 @@ export function Whiteboard() {
           ? e.touches[0].clientY
           : (e as MouseEvent).clientY
 
+      // Object Eraser Logic
+      if (currentMode === 'erase') {
+        const target = opt.target
+        if (target && target !== canvas.backgroundImage) {
+          canvas.remove(target)
+          saveHistory()
+        }
+        return
+      }
+
+      // Text Tool Logic
+      if (currentMode === 'text') {
+        const pointer = canvas.getScenePoint(evt)
+        const text = new fabric.IText('Type here...', {
+          left: pointer.x,
+          top: pointer.y,
+          fill: getColor(),
+          fontSize: Math.max(24, getSize() * 6),
+          fontFamily: 'var(--font-sans)',
+        })
+        canvas.add(text)
+        canvas.setActiveObject(text)
+        text.enterEditing()
+        text.selectAll()
+        // We do not auto-switch mode to 'select' here because we don't have access to setMode inside this effect easily without adding it to dependencies (which re-binds).
+        // We'll just let them keep clicking to add text, or manually switch tools.
+        saveHistory()
+        return
+      }
+
       const isMiddleClick = evt instanceof MouseEvent && evt.button === 1
       const isAltKey = evt instanceof MouseEvent && evt.altKey
       const isMultiTouch = evt instanceof TouchEvent && evt.touches.length > 1
+
+      // Multi-touch Pan/Zoom
+      if (isMultiTouch && evt instanceof TouchEvent) {
+        isPanning = true
+        canvas.selection = false
+        canvas.isDrawingMode = false // Temporarily disable drawing
+        const t1 = evt.touches[0]
+        const t2 = evt.touches[1]
+        initialTouchDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
+        lastTouchCenter = {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2,
+        }
+        canvas.defaultCursor = 'grabbing'
+        return
+      }
+
       // Middle click, Alt, or 'pan' mode for panning
-      if (isMiddleClick || isAltKey || currentMode === 'pan' || isMultiTouch) {
+      if (isMiddleClick || isAltKey || currentMode === 'pan') {
         isPanning = true
         canvas.selection = false
         lastPosX = getClientX(evt)
@@ -353,6 +402,38 @@ export function Whiteboard() {
       if (isPanning) {
         const vpt = canvas.viewportTransform
         if (vpt) {
+          // Multi-touch Zoom/Pan
+          if (evt instanceof TouchEvent && evt.touches.length > 1) {
+            evt.preventDefault() // prevent scroll
+            const t1 = evt.touches[0]
+            const t2 = evt.touches[1]
+            const currentDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
+            const currentCenter = {
+              x: (t1.clientX + t2.clientX) / 2,
+              y: (t1.clientY + t2.clientY) / 2,
+            }
+
+            // Pinch to Zoom
+            if (initialTouchDistance > 0) {
+              const scale = currentDistance / initialTouchDistance
+              let zoom = canvas.getZoom() * scale
+              if (zoom > 500) zoom = 500
+              if (zoom < 0.01) zoom = 0.01
+              canvas.zoomToPoint(new fabric.Point(currentCenter.x, currentCenter.y), zoom)
+            }
+            initialTouchDistance = currentDistance
+
+            // Pan
+            if (lastTouchCenter) {
+              vpt[4] += currentCenter.x - lastTouchCenter.x
+              vpt[5] += currentCenter.y - lastTouchCenter.y
+              canvas.requestRenderAll()
+            }
+            lastTouchCenter = currentCenter
+            return
+          }
+
+          // Single pointer/mouse pan
           const cx = getClientX(evt)
           const cy = getClientY(evt)
 
@@ -405,8 +486,11 @@ export function Whiteboard() {
       if (isPanning) {
         canvas.setViewportTransform(canvas.viewportTransform!)
         isPanning = false
+        initialTouchDistance = 0
+        lastTouchCenter = null
         canvas.defaultCursor = getMode() === 'draw' ? 'crosshair' : 'default'
         if (getMode() === 'select') canvas.selection = true
+        if (getMode() === 'draw') canvas.isDrawingMode = true
       }
 
       if (shapeObj) {
@@ -470,6 +554,11 @@ export function Whiteboard() {
       canvas.defaultCursor = 'grab'
     } else if (['rect', 'circle', 'line'].includes(mode)) {
       canvas.defaultCursor = 'crosshair'
+    } else if (mode === 'erase') {
+      canvas.defaultCursor =
+        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='red' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4L20 11L11 20'/></svg>\") 0 24, pointer"
+    } else if (mode === 'text') {
+      canvas.defaultCursor = 'text'
     } else {
       canvas.defaultCursor = mode === 'draw' ? 'crosshair' : 'default'
     }
@@ -498,6 +587,78 @@ export function Whiteboard() {
     }
   }, [saveHistory])
 
+  const handleBeautify = useCallback(() => {
+    if (!fabricRef.current) return
+    const activeObjects = fabricRef.current.getActiveObjects()
+    if (activeObjects.length === 0) return
+
+    let changed = false
+    activeObjects.forEach((obj) => {
+      // Only beautify paths (hand-drawn lines)
+      if (obj.type === 'path') {
+        const pathObj = obj as fabric.Path
+        const bounds = pathObj.getBoundingRect()
+        const width = bounds.width
+        const height = bounds.height
+
+        // Skip tiny dots/noise
+        if (width < 5 && height < 5) return
+
+        changed = true
+
+        // If it's very thin in one dimension, it's likely meant to be a straight line
+        if (width < 20 || height < 20) {
+          const line = new fabric.Line(
+            [bounds.left, bounds.top, bounds.left + width, bounds.top + height],
+            {
+              stroke: pathObj.stroke,
+              strokeWidth: pathObj.strokeWidth,
+            },
+          )
+          fabricRef.current!.add(line)
+          fabricRef.current!.remove(pathObj)
+          return
+        }
+
+        // If aspect ratio is close to 1:1, it's likely a circle or square
+        const aspectRatio = width / height
+        if (aspectRatio > 0.75 && aspectRatio < 1.33) {
+          const radius = Math.max(width, height) / 2
+          const circle = new fabric.Circle({
+            left: bounds.left,
+            top: bounds.top,
+            radius: radius,
+            stroke: pathObj.stroke,
+            strokeWidth: pathObj.strokeWidth,
+            fill: 'transparent',
+          })
+          fabricRef.current!.add(circle)
+          fabricRef.current!.remove(pathObj)
+        } else {
+          // Otherwise assume rectangle
+          const rect = new fabric.Rect({
+            left: bounds.left,
+            top: bounds.top,
+            width: width,
+            height: height,
+            stroke: pathObj.stroke,
+            strokeWidth: pathObj.strokeWidth,
+            fill: 'transparent',
+          })
+          fabricRef.current!.add(rect)
+          fabricRef.current!.remove(pathObj)
+        }
+      }
+    })
+
+    if (changed) {
+      fabricRef.current.discardActiveObject()
+      fabricRef.current.requestRenderAll()
+      setHasSelection(false)
+      saveHistory()
+    }
+  }, [saveHistory])
+
   const handleClear = useCallback(() => {
     if (!fabricRef.current) return
     const bg = fabricRef.current.backgroundImage
@@ -508,6 +669,19 @@ export function Whiteboard() {
     fabricRef.current.renderAll()
     saveHistory() // Save state after clear
   }, [saveHistory])
+
+  const handleDownloadImage = useCallback(() => {
+    if (!fabricRef.current) return
+    const dataUrl = fabricRef.current.toDataURL({
+      format: 'png',
+      quality: 1,
+      multiplier: 2, // High res export
+    })
+    const link = document.createElement('a')
+    link.download = 'envision-whiteboard.png'
+    link.href = dataUrl
+    link.click()
+  }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -543,6 +717,8 @@ export function Whiteboard() {
       if (key === 'c') setMode('circle')
       if (key === 'l') setMode('line')
       if (key === 'h') setMode('pan')
+      if (key === 'e') setMode('erase')
+      if (key === 't') setMode('text')
 
       // Delete
       if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -575,6 +751,8 @@ export function Whiteboard() {
         showGrid={showGrid}
         setShowGrid={setShowGrid}
         onUploadFile={handleAddFile}
+        onDownloadImage={handleDownloadImage}
+        onBeautify={handleBeautify}
       />
       <div className="absolute inset-0 z-10">
         <canvas ref={canvasRef} />

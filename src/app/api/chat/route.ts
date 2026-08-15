@@ -4,7 +4,7 @@ import { createGroq } from '@ai-sdk/groq'
 import { MODELS, apiKey, stripThinking } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 
-export const maxDuration = 75
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         }
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.error('Failed to transcribe canvas for chat:', e)
+        console.error('Failed to transcribe canvas for chat.')
       } finally {
         if (visionTimeout) clearTimeout(visionTimeout)
       }
@@ -83,9 +83,8 @@ export async function POST(req: NextRequest) {
       messageMetadata: () => ({ createdAt: Date.now() }),
     })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
     // eslint-disable-next-line no-console
-    console.error('chat error:', error)
-    return new Response(JSON.stringify({ error: message }), { status: 500 })
+    console.error('chat error: An internal error occurred.')
+    return new Response(JSON.stringify({ error: 'An internal error occurred.' }), { status: 500 })
   }
 }

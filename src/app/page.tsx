@@ -2,6 +2,7 @@
 
 import Typewriter from 'typewriter-effect'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { AuthMenu } from '@/components/AuthMenu'
 import { EnVisionMark } from '@/components/EnVisionMark'
 import { BackgroundMath } from '@/components/BackgroundMath'
 import { UploadDropzone } from '@/components/UploadDropzone'
@@ -17,7 +18,11 @@ export default function LandingPage() {
           <EnVisionMark className="text-primary-500 h-7 w-7" />
           <span className="font-serif text-[1.1rem] font-bold tracking-tight">EnVision</span>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <div className="bg-border hidden h-4 w-px sm:block" />
+          <AuthMenu />
+        </div>
       </div>
 
       {/* Main Content */}
