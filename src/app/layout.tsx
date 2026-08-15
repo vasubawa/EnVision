@@ -4,6 +4,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { Toaster } from 'sonner'
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin'],
@@ -43,16 +44,22 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {user && (
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-4 text-sm">
-              <span>{user.email}</span>
-              <form action="/auth/signout" method="POST">
-                <button type="submit" className="text-muted-foreground hover:text-foreground">
-                  Sign Out
-                </button>
-              </form>
-            </div>
-          )}
+          <div className="absolute top-4 right-4 z-50 flex items-center gap-4 text-sm">
+            {user ? (
+              <>
+                <span>{user.email}</span>
+                <form action="/auth/signout" method="POST">
+                  <button type="submit" className="text-muted-foreground hover:text-foreground">
+                    Sign Out
+                  </button>
+                </form>
+              </>
+            ) : (
+              <Link href="/login" className="text-muted-foreground hover:text-foreground">
+                Sign In / Save Progress
+              </Link>
+            )}
+          </div>
           {children}
           <Toaster position="bottom-right" richColors theme="system" />
         </ThemeProvider>
