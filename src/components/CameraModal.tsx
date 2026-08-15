@@ -31,6 +31,7 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
           }
         })
         .catch((err) => {
+          // eslint-disable-next-line no-console
           console.debug('getUserMedia error:', err)
           const msg = 'Could not access camera. Please check permissions.'
           setError(msg)

@@ -8,10 +8,8 @@ export const maxDuration = 75
 
 export async function POST(req: NextRequest) {
   try {
-    const {
-      messages,
-      canvasBase64,
-    }: { messages: UIMessage[]; canvasBase64?: string } = await req.json()
+    const { messages, canvasBase64 }: { messages: UIMessage[]; canvasBase64?: string } =
+      await req.json()
 
     let systemPrompt =
       "You are a helpful Socratic tutor. Guide the student using hints and questions. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed in $ for inline and $$ for blocks. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\\\int$ instead of int, $\\\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O."
@@ -22,40 +20,37 @@ export async function POST(req: NextRequest) {
       let visionTimeout: NodeJS.Timeout | null = null
       try {
         visionTimeout = setTimeout(() => visionAbort.abort(), 45_000)
-        const visionReq = await fetch(
-          `${MODELS.vision.apiBase}/chat/completions`,
-          {
-            signal: visionAbort.signal,
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey(MODELS.vision)}`,
-            },
-            body: JSON.stringify({
-              model: MODELS.vision.model,
-              max_tokens: 2000,
-              reasoning_budget: 4096,
-              temperature: 0.6,
-              top_p: 0.95,
-              response_format: { type: 'json_object' },
-              messages: [
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: VISION_TRANSCRIBE_PROMPT,
-                    },
-                    {
-                      type: 'image_url',
-                      image_url: { url: canvasBase64 },
-                    },
-                  ],
-                },
-              ],
-            }),
+        const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
+          signal: visionAbort.signal,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey(MODELS.vision)}`,
           },
-        )
+          body: JSON.stringify({
+            model: MODELS.vision.model,
+            max_tokens: 2000,
+            reasoning_budget: 4096,
+            temperature: 0.6,
+            top_p: 0.95,
+            response_format: { type: 'json_object' },
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: VISION_TRANSCRIBE_PROMPT,
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: canvasBase64 },
+                  },
+                ],
+              },
+            ],
+          }),
+        })
 
         if (visionReq.ok) {
           const visionRes = await visionReq.json()
@@ -66,6 +61,7 @@ export async function POST(req: NextRequest) {
           systemPrompt += `\n\nThe student is currently looking at their whiteboard. Here is a transcription of what is on it right now:\n\n${transcription}`
         }
       } catch (e) {
+        // eslint-disable-next-line no-console
         console.error('Failed to transcribe canvas for chat:', e)
       } finally {
         if (visionTimeout) clearTimeout(visionTimeout)
@@ -88,6 +84,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
+    // eslint-disable-next-line no-console
     console.error('chat error:', error)
     return new Response(JSON.stringify({ error: message }), { status: 500 })
   }

@@ -21,17 +21,17 @@ export const MODELS = {
 
   visionDeep: {
     ...PROVIDERS.nim,
-    model: 'meta/llama-3.2-90b-vision-instruct',
+    model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
   },
 
   reasoning: {
     ...PROVIDERS.groq,
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
   },
 
   reasoningDeep: {
     ...PROVIDERS.nim,
-    model: 'meta/llama-3.3-70b-instruct',
+    model: 'nvidia/nemotron-3-super-120b-a12b',
   },
 } as const
 

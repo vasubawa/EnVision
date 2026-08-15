@@ -20,8 +20,7 @@ export function extractTranscription(
   const tryParse = (text: string): string | null => {
     try {
       const obj = JSON.parse(text)
-      if (typeof obj?.transcription === 'string')
-        return obj.transcription.trim()
+      if (typeof obj?.transcription === 'string') return obj.transcription.trim()
     } catch {
       /* not valid JSON, try next stage */
     }

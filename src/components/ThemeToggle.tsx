@@ -41,10 +41,7 @@ export function ThemeToggle() {
     transition.ready.then(() => {
       document.documentElement.animate(
         {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${endRadius}px at ${x}px ${y}px)`,
-          ],
+          clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
         },
         {
           duration: 600,
@@ -65,11 +62,7 @@ export function ThemeToggle() {
       className="text-foreground/70 hover:text-foreground hover:bg-foreground/5 rounded-full p-2 transition-colors"
       aria-label="Toggle theme"
     >
-      {theme === 'dark' ? (
-        <Sun className="h-5 w-5" />
-      ) : (
-        <Moon className="h-5 w-5" />
-      )}
+      {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
     </button>
   )
 }
