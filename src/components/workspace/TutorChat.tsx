@@ -198,7 +198,7 @@ export function TutorChat() {
             <span className="text-primary-500 font-serif text-sm font-bold">AI</span>
           </div>
           <div className="mt-1 flex-1">
-            <p className="text-foreground/80 bg-card/60 border-border rounded-2xl rounded-tl-none border p-4 text-sm leading-relaxed shadow-sm backdrop-blur-sm">
+            <p className="text-foreground/90 font-serif text-[15px] leading-relaxed">
               I&apos;m ready! Start drawing your solution on the whiteboard. You can ask me
               questions anytime or click &quot;Check my work&quot;.
             </p>
@@ -221,19 +221,19 @@ export function TutorChat() {
               className={`flex max-w-[85%] flex-col ${entry.role === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
+                className={`text-[15px] leading-relaxed ${
                   entry.role === 'user'
-                    ? 'bg-primary-500 rounded-tr-none text-white'
+                    ? 'bg-foreground/5 text-foreground rounded-2xl rounded-tr-sm px-4 py-2.5'
                     : entry.type === 'feedback'
-                      ? `bg-card/80 border-l-4 backdrop-blur-sm ${entry.isCorrect ? 'border-l-green-500' : 'border-l-yellow-500'} border-border rounded-tl-none border-y border-r`
-                      : 'bg-card/60 border-border text-foreground/90 rounded-tl-none border backdrop-blur-sm'
+                      ? `border-l-2 py-1 pl-4 font-serif ${entry.isCorrect ? 'border-l-green-500' : 'border-l-yellow-500'}`
+                      : 'text-foreground/90 pt-1 font-serif'
                 } `}
               >
                 {entry.type === 'feedback' && (
                   <div
-                    className={`mb-2 text-xs font-bold tracking-wider uppercase ${entry.isCorrect ? 'text-green-500' : 'text-yellow-500'}`}
+                    className={`mb-2 text-xs font-bold tracking-wider uppercase ${entry.isCorrect ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}
                   >
-                    {entry.isCorrect ? '✓ On Track!' : '💡 A thought...'}
+                    {entry.isCorrect ? '✓ On Track' : '💡 A thought'}
                   </div>
                 )}
                 <MathRenderer content={entry.content} />
@@ -248,7 +248,7 @@ export function TutorChat() {
             <div className="bg-primary-500/10 border-primary-500/20 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
               <span className="text-primary-500 font-serif text-sm font-bold">AI</span>
             </div>
-            <div className="bg-card/60 border-border text-foreground/60 flex items-center gap-2 rounded-2xl rounded-tl-none border p-4 text-sm backdrop-blur-sm">
+            <div className="text-foreground/50 flex items-center gap-2 pt-1 font-serif text-[15px]">
               <Loader2 className="h-4 w-4 animate-spin" />
               Thinking...
             </div>
@@ -256,25 +256,26 @@ export function TutorChat() {
         )}
       </div>
 
-      <div className="bg-card/40 border-border flex shrink-0 flex-col gap-3 border-t p-4 backdrop-blur-md">
+      <div className="bg-card/95 border-border flex shrink-0 flex-col gap-3 border-t p-4 backdrop-blur-md">
         {/* Quick Actions */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <button
               onClick={handleCheckWork}
               disabled={isAnalyzing || isLoading}
-              className="bg-card border-border hover:bg-foreground/5 text-foreground/80 flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50"
+              className="hover:bg-foreground/5 text-foreground/70 hover:text-foreground flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50"
             >
               <Wand2 className="h-3.5 w-3.5" />
               Check my work
             </button>
+            <div className="bg-border h-4 w-px" />
             <button
               onClick={handleDeepAnalysis}
               disabled={isAnalyzing || isLoading}
-              className="bg-card border-border hover:bg-foreground/5 text-foreground/80 flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50"
+              className="hover:bg-foreground/5 text-foreground/70 hover:text-foreground flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50"
             >
               <BrainCircuit className="h-3.5 w-3.5" />
-              Deeper analysis
+              Deep analysis
             </button>
           </div>
 
@@ -317,8 +318,8 @@ export function TutorChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={isAnalyzing || isLoading}
-            placeholder="Ask a question about your work..."
-            className="bg-background border-border text-foreground focus:border-primary-500/50 h-11 w-full rounded-xl border px-4 pr-12 text-sm shadow-sm transition-colors focus:outline-none disabled:opacity-50"
+            placeholder="Ask a question..."
+            className="bg-foreground/5 text-foreground placeholder:text-foreground/40 focus:bg-foreground/10 h-11 w-full rounded-xl px-4 pr-12 text-sm transition-colors focus:outline-none disabled:opacity-50"
           />
           <button
             type="submit"
