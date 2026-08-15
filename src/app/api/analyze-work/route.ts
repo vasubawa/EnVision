@@ -204,9 +204,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(parsedResult)
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
     // eslint-disable-next-line no-console
-    console.error('analyze-work error:', error)
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('analyze-work error: An internal error occurred.')
+    return NextResponse.json(
+      { error: 'An internal error occurred during analysis.' },
+      { status: 500 },
+    )
   }
 }
