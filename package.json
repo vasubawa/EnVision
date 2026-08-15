@@ -24,7 +24,7 @@
     "pdfjs-dist": "^6.2.108",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-dropzone": "^17.0.0",
+    "react-dropzone": "^20.1.0",
     "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
     "remark-math": "^6.0.0",
