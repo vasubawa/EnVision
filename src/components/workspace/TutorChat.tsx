@@ -1,327 +1,349 @@
-"use client";
+'use client'
 
-import { Send, Loader2, Wand2, BrainCircuit } from "lucide-react";
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useWorkspaceStore } from "@/store/useWorkspaceStore";
-import { useChat, type Message } from "ai/react";
-import { MathRenderer } from "./MathRenderer";
-import { ChatEntry } from "@/types/feedback";
-import { toast } from "sonner";
+import { Send, Loader2, Wand2, BrainCircuit } from 'lucide-react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useWorkspaceStore } from '@/store/useWorkspaceStore'
+import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport, type UIMessage } from 'ai'
+import { MathRenderer } from './MathRenderer'
+import { ChatEntry } from '@/types/feedback'
+import { toast } from 'sonner'
+
+type ChatMessageMetadata = { createdAt?: number }
+type ChatMessage = UIMessage<ChatMessageMetadata>
+
+function getMessageText(message: ChatMessage): string {
+  return message.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text)
+    .join('')
+}
 
 export function TutorChat() {
-	const {
-		chatHistory,
-		addChatEntry,
-		getCanvasImage,
-		lastCanvasUpdate,
-		isAutoCheckEnabled,
-		setIsAutoCheckEnabled,
-		autoCheckDelay,
-		setAutoCheckDelay,
-	} = useWorkspaceStore();
-	const [isAnalyzing, setIsAnalyzing] = useState(false);
-	const lastAnalyzedRef = useRef<number>(0);
-	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const {
+    chatHistory,
+    addChatEntry,
+    getCanvasImage,
+    lastCanvasUpdate,
+    isAutoCheckEnabled,
+    setIsAutoCheckEnabled,
+    autoCheckDelay,
+    setAutoCheckDelay,
+  } = useWorkspaceStore()
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [input, setInput] = useState('')
+  const lastAnalyzedRef = useRef<number>(0)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-	const { messages, input, handleInputChange, handleSubmit, isLoading } =
-		useChat({
-			api: "/api/chat",
-			onError: (err: Error) => toast.error(err.message),
-		});
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: '/api/chat' }),
+    [],
+  )
 
-	const scrollRef = useRef<HTMLDivElement>(null);
+  const { messages, sendMessage, status } = useChat<ChatMessage>({
+    transport,
+    onError: (err: Error) => toast.error(err.message),
+  })
+  const isLoading = status === 'submitted' || status === 'streaming'
 
-	// Combine automated feedback and chat messages, sorted by time
-	const allEntries = useMemo(() => {
-		const aiMessages: ChatEntry[] = messages.map((m: Message) => ({
-			id: m.id,
-			timestamp: m.createdAt?.getTime() || 0,
-			role: m.role as "user" | "assistant",
-			type: "message",
-			content: m.content,
-		}));
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-		const combined = [...chatHistory, ...aiMessages];
-		combined.sort((a, b) => a.timestamp - b.timestamp);
-		return combined;
-	}, [chatHistory, messages]);
+  // Combine automated feedback and chat messages, sorted by time.
+  // Timestamps for chat messages come from `metadata.createdAt`, stamped
+  // client-side at send time and server-side at stream start (see
+  // handleCustomSubmit and /api/chat's messageMetadata option) rather than
+  // computed here — React Compiler forbids impure calls like Date.now()
+  // during render.
+  const allEntries = useMemo(() => {
+    const aiMessages: ChatEntry[] = messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({
+        id: m.id,
+        timestamp: m.metadata?.createdAt || 0,
+        role: m.role as 'user' | 'assistant',
+        type: 'message',
+        content: getMessageText(m),
+      }))
 
-	// Auto-scroll to bottom
-	useEffect(() => {
-		if (scrollRef.current) {
-			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-		}
-	}, [allEntries, isAnalyzing]);
+    const combined = [...chatHistory, ...aiMessages]
+    combined.sort((a, b) => a.timestamp - b.timestamp)
+    return combined
+  }, [chatHistory, messages])
 
-	const handleCustomSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!input.trim() || !getCanvasImage) return;
+  // Auto-scroll to bottom
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [allEntries, isAnalyzing])
 
-		const canvasBase64 = getCanvasImage();
-		if (!canvasBase64) {
-			toast.error("Could not capture canvas.");
-			return;
-		}
+  const handleCustomSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || !getCanvasImage) return
 
-		// Submit to useChat, passing the image as an attachment/data
-		handleSubmit(e, {
-			data: { canvasBase64 },
-		});
-	};
+    const canvasBase64 = getCanvasImage()
+    if (!canvasBase64) {
+      toast.error('Could not capture canvas.')
+      return
+    }
 
-	const handleCheckWork = useCallback(async () => {
-		if (!getCanvasImage) return;
-		const canvasBase64 = getCanvasImage();
-		if (!canvasBase64) return;
+    sendMessage(
+      { text: input, metadata: { createdAt: Date.now() } },
+      { body: { canvasBase64 } },
+    )
+    setInput('')
+  }
 
-		setIsAnalyzing(true);
-		try {
-			const res = await fetch("/api/analyze-work", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ canvasBase64 }),
-			});
+  const handleCheckWork = useCallback(async () => {
+    if (!getCanvasImage) return
+    const canvasBase64 = getCanvasImage()
+    if (!canvasBase64) return
 
-			if (!res.ok) throw new Error("Analysis failed");
-			const data = await res.json();
+    setIsAnalyzing(true)
+    try {
+      const res = await fetch('/api/analyze-work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canvasBase64 }),
+      })
 
-			addChatEntry({
-				id: Math.random().toString(36).substring(7),
-				timestamp: Date.now(),
-				role: "assistant",
-				type: "feedback",
-				isCorrect: data.isCorrect,
-				content: data.suggestion,
-			});
-		} catch (err: unknown) {
-			const error = err instanceof Error ? err : new Error(String(err));
-			toast.error(error.message);
-		} finally {
-			setIsAnalyzing(false);
-			lastAnalyzedRef.current = Date.now();
-		}
-	}, [getCanvasImage, addChatEntry]);
+      if (!res.ok) throw new Error('Analysis failed')
+      const data = await res.json()
 
-	const handleDeepAnalysis = useCallback(async () => {
-		if (!getCanvasImage) return;
-		const canvasBase64 = getCanvasImage();
-		if (!canvasBase64) return;
+      addChatEntry({
+        id: Math.random().toString(36).substring(7),
+        timestamp: Date.now(),
+        role: 'assistant',
+        type: 'feedback',
+        isCorrect: data.isCorrect,
+        content: data.suggestion,
+      })
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err))
+      toast.error(error.message)
+    } finally {
+      setIsAnalyzing(false)
+      lastAnalyzedRef.current = Date.now()
+    }
+  }, [getCanvasImage, addChatEntry])
 
-		setIsAnalyzing(true);
-		try {
-			const res = await fetch("/api/analyze-work-deep", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ canvasBase64 }),
-			});
+  const handleDeepAnalysis = useCallback(async () => {
+    if (!getCanvasImage) return
+    const canvasBase64 = getCanvasImage()
+    if (!canvasBase64) return
 
-			if (!res.ok) throw new Error("Deep analysis failed");
-			const data = await res.json();
+    setIsAnalyzing(true)
+    try {
+      const res = await fetch('/api/analyze-work-deep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canvasBase64 }),
+      })
 
-			addChatEntry({
-				id: Math.random().toString(36).substring(7),
-				timestamp: Date.now(),
-				role: "assistant",
-				type: "feedback",
-				isCorrect: data.isCorrect,
-				content: data.suggestion,
-			});
-		} catch (err: unknown) {
-			const error = err instanceof Error ? err : new Error(String(err));
-			toast.error(error.message);
-		} finally {
-			setIsAnalyzing(false);
-			lastAnalyzedRef.current = Date.now();
-		}
-	}, [getCanvasImage, addChatEntry]);
+      if (!res.ok) throw new Error('Deep analysis failed')
+      const data = await res.json()
 
-	// Automated feedback on inactivity (5 seconds)
-	useEffect(() => {
-		// Clear any existing timeout
-		if (timeoutRef.current) {
-			clearTimeout(timeoutRef.current);
-		}
+      addChatEntry({
+        id: Math.random().toString(36).substring(7),
+        timestamp: Date.now(),
+        role: 'assistant',
+        type: 'feedback',
+        isCorrect: data.isCorrect,
+        content: data.suggestion,
+      })
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err))
+      toast.error(error.message)
+    } finally {
+      setIsAnalyzing(false)
+      lastAnalyzedRef.current = Date.now()
+    }
+  }, [getCanvasImage, addChatEntry])
 
-		// Only trigger if auto-check is enabled, canvas actually updated, and we aren't currently analyzing
-		if (
-			isAutoCheckEnabled &&
-			lastCanvasUpdate > 0 &&
-			lastCanvasUpdate > lastAnalyzedRef.current &&
-			!isAnalyzing &&
-			!isLoading
-		) {
-			timeoutRef.current = setTimeout(() => {
-				// Prevent double triggers
-				if (lastCanvasUpdate > lastAnalyzedRef.current) {
-					handleCheckWork();
-				}
-			}, autoCheckDelay);
-		}
+  // Automated feedback on inactivity (5 seconds)
+  useEffect(() => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
 
-		return () => {
-			if (timeoutRef.current) clearTimeout(timeoutRef.current);
-		};
-	}, [
-		lastCanvasUpdate,
-		isAnalyzing,
-		isLoading,
-		isAutoCheckEnabled,
-		autoCheckDelay,
-		handleCheckWork,
-	]);
+    // Only trigger if auto-check is enabled, canvas actually updated, and we aren't currently analyzing
+    if (
+      isAutoCheckEnabled &&
+      lastCanvasUpdate > 0 &&
+      lastCanvasUpdate > lastAnalyzedRef.current &&
+      !isAnalyzing &&
+      !isLoading
+    ) {
+      timeoutRef.current = setTimeout(() => {
+        // Prevent double triggers
+        if (lastCanvasUpdate > lastAnalyzedRef.current) {
+          handleCheckWork()
+        }
+      }, autoCheckDelay)
+    }
 
-	return (
-		<div className="w-full h-full flex flex-col bg-transparent relative">
-			<div
-				ref={scrollRef}
-				className="flex-1 p-6 overflow-y-auto flex flex-col gap-6 scroll-smooth">
-				{/* Welcome message */}
-				<div className="flex gap-4">
-					<div className="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0 border border-primary-500/20 shadow-sm">
-						<span className="font-serif font-bold text-primary-500 text-sm">
-							AI
-						</span>
-					</div>
-					<div className="flex-1 mt-1">
-						<p className="text-foreground/80 leading-relaxed text-sm bg-card/60 backdrop-blur-sm p-4 rounded-2xl rounded-tl-none border border-border shadow-sm">
-							I&apos;m ready! Start drawing your solution on the
-							whiteboard. You can ask me questions anytime or
-							click &quot;Check my work&quot;.
-						</p>
-					</div>
-				</div>
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [
+    lastCanvasUpdate,
+    isAnalyzing,
+    isLoading,
+    isAutoCheckEnabled,
+    autoCheckDelay,
+    handleCheckWork,
+  ])
 
-				{/* Hybrid Feed */}
-				{allEntries.map((entry) => (
-					<div
-						key={entry.id}
-						className={`flex gap-4 ${entry.role === "user" ? "flex-row-reverse" : ""}`}>
-						{entry.role === "assistant" && (
-							<div className="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0 border border-primary-500/20 shadow-sm mt-1">
-								<span className="font-serif font-bold text-primary-500 text-sm">
-									AI
-								</span>
-							</div>
-						)}
+  return (
+    <div className="relative flex h-full w-full flex-col bg-transparent">
+      <div
+        ref={scrollRef}
+        className="flex flex-1 flex-col gap-6 overflow-y-auto scroll-smooth p-6"
+      >
+        {/* Welcome message */}
+        <div className="flex gap-4">
+          <div className="bg-primary-500/10 border-primary-500/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
+            <span className="text-primary-500 font-serif text-sm font-bold">
+              AI
+            </span>
+          </div>
+          <div className="mt-1 flex-1">
+            <p className="text-foreground/80 bg-card/60 border-border rounded-2xl rounded-tl-none border p-4 text-sm leading-relaxed shadow-sm backdrop-blur-sm">
+              I&apos;m ready! Start drawing your solution on the whiteboard. You
+              can ask me questions anytime or click &quot;Check my work&quot;.
+            </p>
+          </div>
+        </div>
 
-						<div
-							className={`flex flex-col max-w-[85%] ${entry.role === "user" ? "items-end" : "items-start"}`}>
-							<div
-								className={`
-                p-4 rounded-2xl shadow-sm text-sm leading-relaxed
-                ${
-					entry.role === "user"
-						? "bg-primary-500 text-white rounded-tr-none"
-						: entry.type === "feedback"
-							? `bg-card/80 backdrop-blur-sm border-l-4 ${entry.isCorrect ? "border-l-green-500" : "border-l-yellow-500"} border-y border-r border-border rounded-tl-none`
-							: "bg-card/60 backdrop-blur-sm border border-border rounded-tl-none text-foreground/90"
-				}
-              `}>
-								{entry.type === "feedback" && (
-									<div
-										className={`text-xs font-bold mb-2 uppercase tracking-wider ${entry.isCorrect ? "text-green-500" : "text-yellow-500"}`}>
-										{entry.isCorrect
-											? "✓ On Track!"
-											: "💡 A thought..."}
-									</div>
-								)}
-								<MathRenderer content={entry.content} />
-							</div>
-						</div>
-					</div>
-				))}
+        {/* Hybrid Feed */}
+        {allEntries.map((entry) => (
+          <div
+            key={entry.id}
+            className={`flex gap-4 ${entry.role === 'user' ? 'flex-row-reverse' : ''}`}
+          >
+            {entry.role === 'assistant' && (
+              <div className="bg-primary-500/10 border-primary-500/20 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
+                <span className="text-primary-500 font-serif text-sm font-bold">
+                  AI
+                </span>
+              </div>
+            )}
 
-				{/* Loading Indicator */}
-				{(isLoading || isAnalyzing) && (
-					<div className="flex gap-4">
-						<div className="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0 border border-primary-500/20 shadow-sm mt-1">
-							<span className="font-serif font-bold text-primary-500 text-sm">
-								AI
-							</span>
-						</div>
-						<div className="bg-card/60 backdrop-blur-sm p-4 rounded-2xl rounded-tl-none border border-border flex items-center gap-2 text-sm text-foreground/60">
-							<Loader2 className="w-4 h-4 animate-spin" />
-							Thinking...
-						</div>
-					</div>
-				)}
-			</div>
+            <div
+              className={`flex max-w-[85%] flex-col ${entry.role === 'user' ? 'items-end' : 'items-start'}`}
+            >
+              <div
+                className={`rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
+                  entry.role === 'user'
+                    ? 'bg-primary-500 rounded-tr-none text-white'
+                    : entry.type === 'feedback'
+                      ? `bg-card/80 border-l-4 backdrop-blur-sm ${entry.isCorrect ? 'border-l-green-500' : 'border-l-yellow-500'} border-border rounded-tl-none border-y border-r`
+                      : 'bg-card/60 border-border text-foreground/90 rounded-tl-none border backdrop-blur-sm'
+                } `}
+              >
+                {entry.type === 'feedback' && (
+                  <div
+                    className={`mb-2 text-xs font-bold tracking-wider uppercase ${entry.isCorrect ? 'text-green-500' : 'text-yellow-500'}`}
+                  >
+                    {entry.isCorrect ? '✓ On Track!' : '💡 A thought...'}
+                  </div>
+                )}
+                <MathRenderer content={entry.content} />
+              </div>
+            </div>
+          </div>
+        ))}
 
-			<div className="p-4 shrink-0 bg-card/40 backdrop-blur-md border-t border-border flex flex-col gap-3">
-				{/* Quick Actions */}
-				<div className="flex flex-col gap-3">
-					<div className="flex items-center gap-2">
-						<button
-							onClick={handleCheckWork}
-							disabled={isAnalyzing || isLoading}
-							className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-card border border-border hover:bg-foreground/5 transition-colors text-xs font-medium text-foreground/80 disabled:opacity-50">
-							<Wand2 className="w-3.5 h-3.5" />
-							Check my work
-						</button>
-						<button
-							onClick={handleDeepAnalysis}
-							disabled={isAnalyzing || isLoading}
-							className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-card border border-border hover:bg-foreground/5 transition-colors text-xs font-medium text-foreground/80 disabled:opacity-50">
-							<BrainCircuit className="w-3.5 h-3.5" />
-							Deeper analysis
-						</button>
-					</div>
+        {/* Loading Indicator */}
+        {(isLoading || isAnalyzing) && (
+          <div className="flex gap-4">
+            <div className="bg-primary-500/10 border-primary-500/20 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
+              <span className="text-primary-500 font-serif text-sm font-bold">
+                AI
+              </span>
+            </div>
+            <div className="bg-card/60 border-border text-foreground/60 flex items-center gap-2 rounded-2xl rounded-tl-none border p-4 text-sm backdrop-blur-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Thinking...
+            </div>
+          </div>
+        )}
+      </div>
 
-					{/* Auto-check Settings */}
-					<div className="flex items-center gap-3 px-1">
-						<label className="flex items-center gap-2 text-xs text-foreground/80 cursor-pointer hover:text-foreground transition-colors">
-							<input
-								type="checkbox"
-								checked={isAutoCheckEnabled}
-								onChange={(e) =>
-									setIsAutoCheckEnabled(e.target.checked)
-								}
-								className="rounded border-border bg-card accent-primary-500 w-3.5 h-3.5 cursor-pointer"
-							/>
-							Auto-check work
-						</label>
+      <div className="bg-card/40 border-border flex shrink-0 flex-col gap-3 border-t p-4 backdrop-blur-md">
+        {/* Quick Actions */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCheckWork}
+              disabled={isAnalyzing || isLoading}
+              className="bg-card border-border hover:bg-foreground/5 text-foreground/80 flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Check my work
+            </button>
+            <button
+              onClick={handleDeepAnalysis}
+              disabled={isAnalyzing || isLoading}
+              className="bg-card border-border hover:bg-foreground/5 text-foreground/80 flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              <BrainCircuit className="h-3.5 w-3.5" />
+              Deeper analysis
+            </button>
+          </div>
 
-						{isAutoCheckEnabled && (
-							<div className="flex items-center gap-1.5 text-xs text-foreground/60 animate-in fade-in slide-in-from-left-2 duration-200">
-								<span>after</span>
-								<select
-									value={autoCheckDelay}
-									onChange={(e) =>
-										setAutoCheckDelay(
-											Number(e.target.value),
-										)
-									}
-									className="bg-card border border-border rounded-md px-1.5 py-0.5 text-xs outline-none focus:border-primary-500/50 cursor-pointer hover:border-border/80 transition-colors">
-									<option value={5000}>5s</option>
-									<option value={10000}>10s</option>
-									<option value={15000}>15s</option>
-									<option value={30000}>30s</option>
-									<option value={60000}>60s</option>
-								</select>
-								<span>idle</span>
-							</div>
-						)}
-					</div>
-				</div>
+          {/* Auto-check Settings */}
+          <div className="flex items-center gap-3 px-1">
+            <label className="text-foreground/80 hover:text-foreground flex cursor-pointer items-center gap-2 text-xs transition-colors">
+              <input
+                type="checkbox"
+                checked={isAutoCheckEnabled}
+                onChange={(e) => setIsAutoCheckEnabled(e.target.checked)}
+                className="border-border bg-card accent-primary-500 h-3.5 w-3.5 cursor-pointer rounded"
+              />
+              Auto-check work
+            </label>
 
-				{/* Chat Input */}
-				<form onSubmit={handleCustomSubmit} className="relative">
-					<input
-						type="text"
-						value={input}
-						onChange={handleInputChange}
-						disabled={isAnalyzing || isLoading}
-						placeholder="Ask a question about your work..."
-						className="w-full h-11 rounded-xl bg-background border border-border px-4 pr-12 text-sm text-foreground focus:outline-none focus:border-primary-500/50 transition-colors shadow-sm disabled:opacity-50"
-					/>
-					<button
-						type="submit"
-						className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-colors disabled:opacity-50"
-						disabled={!input.trim() || isAnalyzing || isLoading}>
-						<Send className="w-4 h-4" />
-					</button>
-				</form>
-			</div>
-		</div>
-	);
+            {isAutoCheckEnabled && (
+              <div className="text-foreground/60 animate-in fade-in slide-in-from-left-2 flex items-center gap-1.5 text-xs duration-200">
+                <span>after</span>
+                <select
+                  value={autoCheckDelay}
+                  onChange={(e) => setAutoCheckDelay(Number(e.target.value))}
+                  className="bg-card border-border focus:border-primary-500/50 hover:border-border/80 cursor-pointer rounded-md border px-1.5 py-0.5 text-xs transition-colors outline-none"
+                >
+                  <option value={5000}>5s</option>
+                  <option value={10000}>10s</option>
+                  <option value={15000}>15s</option>
+                  <option value={30000}>30s</option>
+                  <option value={60000}>60s</option>
+                </select>
+                <span>idle</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Chat Input */}
+        <form onSubmit={handleCustomSubmit} className="relative">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={isAnalyzing || isLoading}
+            placeholder="Ask a question about your work..."
+            className="bg-background border-border text-foreground focus:border-primary-500/50 h-11 w-full rounded-xl border px-4 pr-12 text-sm shadow-sm transition-colors focus:outline-none disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            className="bg-primary-500 hover:bg-primary-600 absolute top-1/2 right-1.5 -translate-y-1/2 rounded-lg p-1.5 text-white transition-colors disabled:opacity-50"
+            disabled={!input.trim() || isAnalyzing || isLoading}
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </form>
+      </div>
+    </div>
+  )
 }

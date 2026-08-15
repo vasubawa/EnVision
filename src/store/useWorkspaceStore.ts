@@ -1,27 +1,27 @@
-import { create } from "zustand";
-import { ChatEntry } from "@/types/feedback";
+import { create } from 'zustand'
+import { ChatEntry } from '@/types/feedback'
 
 interface WorkspaceState {
-  file: File | null;
-  setFile: (file: File | null) => void;
+  file: File | null
+  setFile: (file: File | null) => void
 
   // Hybrid Feed
-  chatHistory: ChatEntry[];
-  addChatEntry: (entry: ChatEntry) => void;
-  clearChat: () => void;
+  chatHistory: ChatEntry[]
+  addChatEntry: (entry: ChatEntry) => void
+  clearChat: () => void
 
   // Canvas Image Capture
-  getCanvasImage: (() => string | null) | null;
-  setGetCanvasImage: (fn: (() => string | null) | null) => void;
+  getCanvasImage: (() => string | null) | null
+  setGetCanvasImage: (fn: (() => string | null) | null) => void
 
-  lastCanvasUpdate: number;
-  setLastCanvasUpdate: (timestamp: number) => void;
+  lastCanvasUpdate: number
+  setLastCanvasUpdate: (timestamp: number) => void
 
   // Auto-Check Settings
-  isAutoCheckEnabled: boolean;
-  setIsAutoCheckEnabled: (enabled: boolean) => void;
-  autoCheckDelay: number;
-  setAutoCheckDelay: (delay: number) => void;
+  isAutoCheckEnabled: boolean
+  setIsAutoCheckEnabled: (enabled: boolean) => void
+  autoCheckDelay: number
+  setAutoCheckDelay: (delay: number) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -29,7 +29,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   setFile: (file) => set({ file }),
 
   chatHistory: [],
-  addChatEntry: (entry) => set((state) => ({ chatHistory: [...state.chatHistory, entry] })),
+  addChatEntry: (entry) =>
+    set((state) => ({ chatHistory: [...state.chatHistory, entry] })),
   clearChat: () => set({ chatHistory: [] }),
 
   getCanvasImage: null,
@@ -42,4 +43,4 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   setIsAutoCheckEnabled: (enabled) => set({ isAutoCheckEnabled: enabled }),
   autoCheckDelay: 5000,
   setAutoCheckDelay: (delay) => set({ autoCheckDelay: delay }),
-}));
+}))
