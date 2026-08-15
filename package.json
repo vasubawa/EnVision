@@ -9,7 +9,7 @@
     "check": "tsc --noEmit && eslint . && prettier --check .",
     "fix": "eslint --fix . && prettier --write .",
     "prepare": "husky",
-    "seed": "tsx scripts/seed.ts"
+    "db:push": "supabase db push"
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.28",
@@ -38,12 +38,10 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
-    "@faker-js/faker": "^10.6.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "dotenv": "^17.4.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.1",
     "husky": "^9.1.7",
@@ -51,8 +49,8 @@
     "npm-run-all2": "^9.0.3",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "supabase": "^2.114.0",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.12",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0"
   },
