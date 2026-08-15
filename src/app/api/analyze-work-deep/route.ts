@@ -21,7 +21,7 @@ function isFeedbackShape(obj: unknown): obj is Feedback {
   )
 }
 
-export const maxDuration = 90
+export const maxDuration = 120
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,17 +40,20 @@ export async function POST(req: NextRequest) {
     let visionRes: ChatCompletionResponse
     try {
       const visionReq = await fetch(
-        `${MODELS.visionDeep.apiBase}/chat/completions`,
+        `${MODELS.vision.apiBase}/chat/completions`,
         {
           method: 'POST',
           signal: visionAbort.signal,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey(MODELS.visionDeep)}`,
+            Authorization: `Bearer ${apiKey(MODELS.vision)}`,
           },
           body: JSON.stringify({
-            model: MODELS.visionDeep.model,
-            max_tokens: 1500,
+            model: MODELS.vision.model,
+            max_tokens: 2000,
+            reasoning_budget: 4096,
+            temperature: 0.6,
+            top_p: 0.95,
             response_format: { type: 'json_object' },
             messages: [
               {
@@ -87,24 +90,23 @@ export async function POST(req: NextRequest) {
     )
 
     const deepAbort = new AbortController()
-    const deepTimeout = setTimeout(() => deepAbort.abort(), 25_000)
+    const deepTimeout = setTimeout(() => deepAbort.abort(), 60_000)
 
     let deepRes: ChatCompletionResponse
     const t0 = Date.now()
     try {
       const deepReq = await fetch(
-        `${MODELS.reasoning.apiBase}/chat/completions`,
+        `${MODELS.reasoningDeep.apiBase}/chat/completions`,
         {
           method: 'POST',
           signal: deepAbort.signal,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey(MODELS.reasoning)}`,
+            Authorization: `Bearer ${apiKey(MODELS.reasoningDeep)}`,
           },
           body: JSON.stringify({
-            model: MODELS.reasoning.model,
-            max_tokens: 600,
-            response_format: { type: 'json_object' },
+            model: MODELS.reasoningDeep.model,
+            max_tokens: 2048,
             messages: [
               {
                 role: 'user',
@@ -149,6 +151,23 @@ export async function POST(req: NextRequest) {
         if (match) parsedResult = extractResult(JSON.parse(match[0]))
       } catch {
         /* continue */
+      }
+    }
+    // Fallback regex extraction if JSON.parse fails due to unescaped backslashes
+    if (!parsedResult) {
+      const suggestionMatch = rawText.match(
+        /"suggestion"\s*:\s*"([\s\S]*?)"\s*\}/,
+      )
+      if (suggestionMatch) {
+        parsedResult = {
+          isCorrect:
+            rawText.includes('"isCorrect": true') ||
+            rawText.includes('"isCorrect":true'),
+          suggestion: suggestionMatch[1]
+            .replace(/\\n/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim(),
+        }
       }
     }
     if (!parsedResult) {

@@ -102,14 +102,13 @@ export async function POST(req: NextRequest) {
           },
           body: JSON.stringify({
             model: MODELS.reasoning.model,
-            max_tokens: 200,
+            max_tokens: 2048,
             messages: [
               {
                 role: 'user',
                 content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`,
               },
             ],
-            response_format: { type: 'json_object' },
           }),
         },
       )
@@ -182,12 +181,27 @@ export async function POST(req: NextRequest) {
     if (!parsedResult) {
       try {
         const match = rawText.match(/\{[\s\S]*\}/)
-        if (match) {
-          const obj = JSON.parse(match[0])
-          parsedResult = extractResult(obj)
-        }
+        if (match) parsedResult = extractResult(JSON.parse(match[0]))
       } catch {
         /* continue */
+      }
+    }
+
+    // Fallback regex extraction if JSON.parse fails due to unescaped backslashes
+    if (!parsedResult) {
+      const suggestionMatch = rawText.match(
+        /"suggestion"\s*:\s*"([\s\S]*?)"\s*\}/,
+      )
+      if (suggestionMatch) {
+        parsedResult = {
+          isCorrect:
+            rawText.includes('"isCorrect": true') ||
+            rawText.includes('"isCorrect":true'),
+          suggestion: suggestionMatch[1]
+            .replace(/\\n/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim(),
+        }
       }
     }
 

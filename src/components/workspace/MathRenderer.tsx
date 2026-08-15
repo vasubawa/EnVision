@@ -119,12 +119,24 @@ function wrapBareLatex(text: string): string {
 
   const flushMath = (...extra: string[]) => {
     if (mathBuf.length) {
+      // Find trailing spaces
+      const trailingSpaces: string[] = []
+      while (mathBuf.length && /^\s+$/.test(mathBuf[mathBuf.length - 1])) {
+        trailingSpaces.unshift(mathBuf.pop()!)
+      }
+
       const expr = mathBuf.join('').trim()
-      if (expr && /\\[a-zA-Z]/.test(expr)) {
+      if (
+        expr &&
+        (/\\[a-zA-Z]/.test(expr) ||
+          /[{}^_]/.test(expr) ||
+          (/[=+\-*/]/.test(expr) && /[xyz]/.test(expr)))
+      ) {
         out.push(`$${expr}$`)
       } else {
         out.push(...mathBuf)
       }
+      out.push(...trailingSpaces)
       mathBuf = []
     }
     out.push(...extra)
