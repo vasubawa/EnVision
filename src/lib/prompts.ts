@@ -9,24 +9,29 @@ Common misreadings to correct for:
 
 Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation of correctness, no commentary.
 
-Return ONLY valid JSON: {"transcription": "string"}. No markdown, no extra text outside the JSON.`;
+Return ONLY valid JSON: {"transcription": "string"}. No markdown, no extra text outside the JSON.`
 
-
-export function extractTranscription(rawContent: string, stripThinking: (t: string) => string): string {
-  const cleaned = stripThinking(rawContent);
+export function extractTranscription(
+  rawContent: string,
+  stripThinking: (t: string) => string,
+): string {
+  const cleaned = stripThinking(rawContent)
 
   const tryParse = (text: string): string | null => {
     try {
-      const obj = JSON.parse(text);
-      if (typeof obj?.transcription === 'string') return obj.transcription.trim();
-    } catch { /* not valid JSON, try next stage */ }
-    return null;
-  };
+      const obj = JSON.parse(text)
+      if (typeof obj?.transcription === 'string')
+        return obj.transcription.trim()
+    } catch {
+      /* not valid JSON, try next stage */
+    }
+    return null
+  }
 
   return (
     tryParse(cleaned) ??
     tryParse(cleaned.replace(/```json|```/g, '').trim()) ??
     tryParse(cleaned.match(/\{[\s\S]*\}/)?.[0] ?? '') ??
     cleaned
-  );
+  )
 }
