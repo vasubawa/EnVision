@@ -6,12 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
-    "lint:fix": "eslint --fix .",
-    "format": "prettier --write --ignore-path .prettierignore .",
-    "format:check": "prettier --check .",
-    "typecheck": "tsc --project ./tsconfig.json --noEmit",
-    "check": "run-p -l --continue-on-error lint typecheck format:check",
+    "check": "tsc --noEmit && eslint . && prettier --check .",
+    "fix": "eslint --fix . && prettier --write .",
     "prepare": "husky"
   },
   "dependencies": {
@@ -60,7 +56,7 @@
       "eslint --fix --no-warn-ignored",
       "prettier --write"
     ],
-    "*.{json,css,md}": [
+    "*.{json,css,md,yml,yaml}": [
       "prettier --write"
     ]
   },
