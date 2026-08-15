@@ -1,4 +1,3 @@
-
 export const PROVIDERS = {
   nim: {
     apiBase: 'https://integrate.api.nvidia.com/v1',
@@ -12,7 +11,7 @@ export const PROVIDERS = {
     apiBase: 'https://openrouter.ai/api/v1',
     apiKeyEnv: 'OPENROUTER_API_KEY',
   },
-} as const;
+} as const
 
 export const MODELS = {
   vision: {
@@ -34,18 +33,18 @@ export const MODELS = {
     ...PROVIDERS.nim,
     model: 'meta/llama-3.3-70b-instruct',
   },
-} as const;
+} as const
 
 export interface ChatCompletionResponse {
-  choices: { message: { content: string } }[];
+  choices: { message: { content: string } }[]
 }
 
 export function apiKey(m: { apiKeyEnv: string }): string {
-  const key = process.env[m.apiKeyEnv];
-  if (!key) throw new Error(`Missing env var: ${m.apiKeyEnv}`);
-  return key;
+  const key = process.env[m.apiKeyEnv]
+  if (!key) throw new Error(`Missing env var: ${m.apiKeyEnv}`)
+  return key
 }
 
 export function stripThinking(text: string): string {
-  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
 }
