@@ -4,7 +4,7 @@ import { createGroq } from '@ai-sdk/groq'
 import { MODELS, apiKey, stripThinking } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 
-export const maxDuration = 75
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {

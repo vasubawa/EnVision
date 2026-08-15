@@ -16,7 +16,7 @@ function isFeedbackShape(obj: unknown): obj is Feedback {
   )
 }
 // Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined
-export const maxDuration = 75
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
