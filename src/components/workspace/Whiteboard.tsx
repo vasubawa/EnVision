@@ -284,6 +284,36 @@ export function Whiteboard() {
           ? e.touches[0].clientY
           : (e as MouseEvent).clientY
 
+      // Object Eraser Logic
+      if (currentMode === 'erase') {
+        const target = opt.target
+        if (target && target !== canvas.backgroundImage) {
+          canvas.remove(target)
+          saveHistory()
+        }
+        return
+      }
+
+      // Text Tool Logic
+      if (currentMode === 'text') {
+        const pointer = canvas.getScenePoint(evt)
+        const text = new fabric.IText('Type here...', {
+          left: pointer.x,
+          top: pointer.y,
+          fill: getColor(),
+          fontSize: Math.max(24, getSize() * 6),
+          fontFamily: 'var(--font-sans)',
+        })
+        canvas.add(text)
+        canvas.setActiveObject(text)
+        text.enterEditing()
+        text.selectAll()
+        // We do not auto-switch mode to 'select' here because we don't have access to setMode inside this effect easily without adding it to dependencies (which re-binds).
+        // We'll just let them keep clicking to add text, or manually switch tools.
+        saveHistory()
+        return
+      }
+
       const isMiddleClick = evt instanceof MouseEvent && evt.button === 1
       const isAltKey = evt instanceof MouseEvent && evt.altKey
       const isMultiTouch = evt instanceof TouchEvent && evt.touches.length > 1
@@ -470,6 +500,11 @@ export function Whiteboard() {
       canvas.defaultCursor = 'grab'
     } else if (['rect', 'circle', 'line'].includes(mode)) {
       canvas.defaultCursor = 'crosshair'
+    } else if (mode === 'erase') {
+      canvas.defaultCursor =
+        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='red' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4L20 11L11 20'/></svg>\") 0 24, pointer"
+    } else if (mode === 'text') {
+      canvas.defaultCursor = 'text'
     } else {
       canvas.defaultCursor = mode === 'draw' ? 'crosshair' : 'default'
     }
@@ -509,6 +544,19 @@ export function Whiteboard() {
     saveHistory() // Save state after clear
   }, [saveHistory])
 
+  const handleDownloadImage = useCallback(() => {
+    if (!fabricRef.current) return
+    const dataUrl = fabricRef.current.toDataURL({
+      format: 'png',
+      quality: 1,
+      multiplier: 2, // High res export
+    })
+    const link = document.createElement('a')
+    link.download = 'envision-whiteboard.png'
+    link.href = dataUrl
+    link.click()
+  }, [])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -543,6 +591,8 @@ export function Whiteboard() {
       if (key === 'c') setMode('circle')
       if (key === 'l') setMode('line')
       if (key === 'h') setMode('pan')
+      if (key === 'e') setMode('erase')
+      if (key === 't') setMode('text')
 
       // Delete
       if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -575,6 +625,7 @@ export function Whiteboard() {
         showGrid={showGrid}
         setShowGrid={setShowGrid}
         onUploadFile={handleAddFile}
+        onDownloadImage={handleDownloadImage}
       />
       <div className="absolute inset-0 z-10">
         <canvas ref={canvasRef} />
