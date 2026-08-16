@@ -11,3 +11,5 @@ if git diff --cached | grep -qE '(sk-or-v1-[A-Za-z0-9]{10,}|gsk_[A-Za-z0-9]{20,}
 fi
 
 pnpm exec lint-staged
+pnpm check
+pnpm build

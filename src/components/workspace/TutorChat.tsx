@@ -85,7 +85,7 @@ export function TutorChat({
 
   const { messages, sendMessage, status } = useChat<ChatMessage>({
     transport,
-    initialMessages: initialChatMessages,
+    messages: initialChatMessages,
     onError: (err: Error) => toast.error(err.message),
   })
   const isLoading = status === 'submitted' || status === 'streaming'

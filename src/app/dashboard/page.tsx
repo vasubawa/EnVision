@@ -99,7 +99,7 @@ export default async function DashboardPage() {
                 </div>
 
                 {/* Card Actions (Delete) */}
-                <div className="absolute top-4 right-4 z-20 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                <div className="absolute top-4 right-4 z-20 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                   <form
                     action={async () => {
                       'use server'
