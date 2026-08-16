@@ -7,6 +7,17 @@ import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 
 export const maxDuration = 60
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getMessageText(message: any): string {
+  if (message.parts) {
+    return message.parts
+      .filter((part: unknown) => (part as { type: string }).type === 'text')
+      .map((part: unknown) => (part as { text: string }).text)
+      .join('')
+  }
+  return message.content || ''
+}
+
 export async function POST(req: NextRequest) {
   const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 15, windowMs: 60_000 })
   if (!allowed) {
@@ -86,10 +97,68 @@ export async function POST(req: NextRequest) {
       baseURL: MODELS.reasoning.apiBase,
     })
 
+    const workspaceId = req.nextUrl.searchParams.get('workspaceId')
+
+    // Optimistically save the user message to the DB if we have a workspaceId
+    if (workspaceId && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1]
+      if (lastMessage.role === 'user') {
+        const { createClient } = await import('@/lib/supabase/server')
+        const supabase = await createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+        }
+
+        // Verify user owns the workspace
+        const { data: workspace } = await supabase
+          .from('workspaces')
+          .select('user_id')
+          .eq('id', workspaceId)
+          .single()
+
+        if (!workspace || workspace.user_id !== user.id) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 })
+        }
+
+        const { error: insertError } = await supabase.from('messages').insert({
+          id: lastMessage.id,
+          workspace_id: workspaceId,
+          role: 'user',
+          kind: 'chat',
+          content: getMessageText(lastMessage),
+        })
+
+        if (insertError) {
+          return new Response(JSON.stringify({ error: 'Failed to save message' }), { status: 500 })
+        }
+      }
+    }
+
     const result = streamText({
       model: groq(MODELS.reasoning.model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
+      onFinish: async ({ text }) => {
+        if (workspaceId) {
+          const { createClient } = await import('@/lib/supabase/server')
+          const supabase = await createClient()
+          const { error: insertError } = await supabase.from('messages').insert({
+            workspace_id: workspaceId,
+            role: 'assistant',
+            kind: 'chat',
+            content: text,
+          })
+
+          if (insertError) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to persist assistant message:', insertError)
+          }
+        }
+      },
     })
 
     return result.toUIMessageStreamResponse({
