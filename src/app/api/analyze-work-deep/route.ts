@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { canvasBase64 } = await req.json()
+    const { canvasBase64, workspaceId } = await req.json()
 
     if (!isValidCanvasImage(canvasBase64)) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
@@ -146,7 +146,53 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(parsedResult)
+    // Save to database if workspaceId is provided
+    let savedId = undefined
+
+    if (workspaceId && parsedResult) {
+      const { createClient } = await import('@/lib/supabase/server')
+      const supabase = await createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      // Verify user owns the workspace
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('user_id')
+        .eq('id', workspaceId)
+        .single()
+
+      if (!workspace || workspace.user_id !== user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      const { data, error: insertError } = await supabase
+        .from('messages')
+        .insert({
+          workspace_id: workspaceId,
+          role: 'assistant',
+          kind: 'feedback',
+          content: parsedResult.suggestion,
+          is_correct: parsedResult.isCorrect,
+        })
+        .select('id')
+        .single()
+
+      if (insertError) {
+        return NextResponse.json({ error: 'Failed to save feedback' }, { status: 500 })
+      }
+
+      if (data) {
+        savedId = data.id
+      }
+    }
+
+    return NextResponse.json({ ...parsedResult, id: savedId })
   } catch (error: unknown) {
     const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console

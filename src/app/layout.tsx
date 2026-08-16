@@ -43,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
       <body
-        className={`${inter.variable} ${lora.variable} bg-background text-foreground antialiased transition-colors duration-500`}
+        className={`${inter.variable} ${lora.variable} bg-background text-foreground antialiased`}
       >
         {' '}
         <ThemeProvider
