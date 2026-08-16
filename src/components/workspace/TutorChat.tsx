@@ -26,6 +26,15 @@ export function TutorChat({
   workspaceId: string
   initialMessages?: unknown[]
 }) {
+  interface DBMessage {
+    id: string
+    created_at: string
+    role: string
+    kind: string
+    content: string
+    is_correct: boolean | null
+  }
+
   const {
     chatHistory,
     addChatEntry,
@@ -44,7 +53,7 @@ export function TutorChat({
 
   // Initialize feedback messages from DB
   useEffect(() => {
-    const feedbackMessages = initialMessages
+    const feedbackMessages = (initialMessages as DBMessage[])
       .filter((m) => m.kind === 'feedback')
       .map((m) => ({
         id: m.id,
@@ -59,7 +68,7 @@ export function TutorChat({
 
   // Extract initial chat messages for useChat
   const initialChatMessages = useMemo(() => {
-    return initialMessages
+    return (initialMessages as DBMessage[])
       .filter((m) => m.kind === 'chat')
       .map((m) => ({
         id: m.id,

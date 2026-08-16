@@ -30,5 +30,21 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
     notFound()
   }
 
-  return <WorkspaceClient workspace={workspace} initialMessages={messages || []} />
+  let initialCanvasState = null
+  if (workspace.canvas_snapshot_path) {
+    const { data } = await supabase.storage
+      .from('workspace-snapshots')
+      .download(workspace.canvas_snapshot_path)
+    if (data) {
+      initialCanvasState = await data.text()
+    }
+  }
+
+  return (
+    <WorkspaceClient
+      workspace={workspace}
+      initialMessages={messages || []}
+      initialCanvasState={initialCanvasState}
+    />
+  )
 }

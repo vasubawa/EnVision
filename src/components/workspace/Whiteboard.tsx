@@ -12,8 +12,8 @@ if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 }
 
-export function Whiteboard() {
-  const { file, setGetCanvasImage, setLastCanvasUpdate } = useWorkspaceStore()
+export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?: string | null }) {
+  const { file, setGetCanvasImage, setGetCanvasJson, setLastCanvasUpdate } = useWorkspaceStore()
   const { resolvedTheme } = useTheme()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -172,7 +172,7 @@ export function Whiteboard() {
     })
     fabricRef.current = canvas
 
-    // Register getCanvasImage
+    // Register getCanvasImage and getCanvasJson
     setGetCanvasImage(() => {
       if (!fabricRef.current) return null
       return fabricRef.current.toDataURL({
@@ -182,6 +182,11 @@ export function Whiteboard() {
       })
     })
 
+    setGetCanvasJson(() => {
+      if (!fabricRef.current) return null
+      return JSON.stringify(fabricRef.current.toJSON())
+    })
+
     // Set up drawing brush with the color/size held at mount time; later changes
     // are applied live by the effect below without recreating the canvas.
     const brush = new fabric.PencilBrush(canvas)
@@ -189,19 +194,26 @@ export function Whiteboard() {
     brush.width = size
     canvas.freeDrawingBrush = brush
 
-    // Initialize blank state for history
-    saveHistory()
+    if (initialCanvasState) {
+      canvas.loadFromJSON(initialCanvasState).then(() => {
+        canvas.renderAll()
+        saveHistory()
+      })
+    } else {
+      // Initialize blank state for history
+      saveHistory()
 
-    // Load file (Image or PDF)
-    if (file) {
-      handleAddFile(file)
-      // For initial file, we want it to be at the back
-      setTimeout(() => {
-        if (fabricRef.current) {
-          const objs = fabricRef.current.getObjects()
-          if (objs.length > 0) fabricRef.current.sendObjectToBack(objs[objs.length - 1])
-        }
-      }, 500)
+      // Load file (Image or PDF)
+      if (file) {
+        handleAddFile(file)
+        // For initial file, we want it to be at the back
+        setTimeout(() => {
+          if (fabricRef.current) {
+            const objs = fabricRef.current.getObjects()
+            if (objs.length > 0) fabricRef.current.sendObjectToBack(objs[objs.length - 1])
+          }
+        }, 500)
+      }
     }
 
     // --- INFINITE DOT GRID ---

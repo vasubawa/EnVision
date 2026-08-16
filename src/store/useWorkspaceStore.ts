@@ -14,6 +14,8 @@ interface WorkspaceState {
   // Canvas Image Capture
   getCanvasImage: (() => string | null) | null
   setGetCanvasImage: (fn: (() => string | null) | null) => void
+  getCanvasJson: (() => string | null) | null
+  setGetCanvasJson: (fn: (() => string | null) | null) => void
 
   lastCanvasUpdate: number
   setLastCanvasUpdate: (timestamp: number) => void
@@ -36,6 +38,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   getCanvasImage: null,
   setGetCanvasImage: (fn) => set({ getCanvasImage: fn }),
+  getCanvasJson: null,
+  setGetCanvasJson: (fn) => set({ getCanvasJson: fn }),
 
   lastCanvasUpdate: 0,
   setLastCanvasUpdate: (timestamp) => set({ lastCanvasUpdate: timestamp }),

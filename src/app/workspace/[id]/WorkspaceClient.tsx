@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { ArrowLeft, MessageSquare, X } from 'lucide-react'
 import { AuthMenu } from '@/components/AuthMenu'
+import { createClient } from '@/lib/supabase/client'
 import dynamic from 'next/dynamic'
 const Whiteboard = dynamic(
   () => import('@/components/workspace/Whiteboard').then((mod) => mod.Whiteboard),
@@ -16,18 +17,58 @@ import { TutorChat } from '@/components/workspace/TutorChat'
 interface Workspace {
   id: string
   title: string
+  user_id: string
   // Add other fields as needed
 }
 
 export default function WorkspaceClient({
   workspace,
   initialMessages,
+  initialCanvasState,
 }: {
   workspace: Workspace
   initialMessages: unknown[]
+  initialCanvasState: string | null
 }) {
   const router = useRouter()
   const [isChatOpen, setIsChatOpen] = useState(true)
+  const { lastCanvasUpdate, getCanvasJson } = useWorkspaceStore()
+  const supabase = createClient()
+
+  // Auto-save Canvas
+  useEffect(() => {
+    if (!lastCanvasUpdate || !getCanvasJson) return
+
+    const timeout = setTimeout(async () => {
+      try {
+        const jsonStr = getCanvasJson()
+        if (!jsonStr) return
+
+        const filePath = `${workspace.user_id}/${workspace.id}/snapshot.json`
+        const file = new File([jsonStr], 'snapshot.json', { type: 'application/json' })
+
+        const { error: uploadError } = await supabase.storage
+          .from('workspace-snapshots')
+          .upload(filePath, file, { upsert: true })
+
+        if (uploadError) throw uploadError
+
+        const { error: dbError } = await supabase
+          .from('workspaces')
+          .update({
+            canvas_snapshot_path: filePath,
+            canvas_snapshot_updated_at: new Date().toISOString(),
+          })
+          .eq('id', workspace.id)
+
+        if (dbError) throw dbError
+      } catch (err) {
+        console.error('Auto-save failed:', err)
+      }
+    }, 2000) // Debounce for 2 seconds
+
+    return () => clearTimeout(timeout)
+  }, [lastCanvasUpdate, getCanvasJson, workspace.id, workspace.user_id, supabase])
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -68,9 +109,9 @@ export default function WorkspaceClient({
 
       {/* Main Workspace Area (Full Screen) */}
       <main className="relative flex flex-1 flex-col overflow-hidden">
-        <section className="relative h-full w-full bg-transparent">
-          <Whiteboard />
-        </section>
+        <div className="relative flex-1 bg-white dark:bg-black/20">
+          <Whiteboard initialCanvasState={initialCanvasState} />
+        </div>
 
         {/* Floating Chat Bubble */}
         <div
