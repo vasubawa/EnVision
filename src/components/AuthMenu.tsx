@@ -8,7 +8,7 @@ import type { User } from '@supabase/supabase-js'
 export function AuthMenu() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -23,7 +23,7 @@ export function AuthMenu() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [supabase])
 
   if (loading) return <div className="bg-foreground/10 h-5 w-20 animate-pulse rounded" />
 
