@@ -6,6 +6,8 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useCaptcha } from '@/components/CaptchaModal'
+import Link from 'next/link'
+import { EnVisionMark } from '@/components/EnVisionMark'
 
 export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
@@ -59,7 +61,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col items-center justify-center p-4">
+    <div className="bg-background flex min-h-screen flex-col items-center justify-center p-4">
+      <Link href="/" className="mb-8 flex items-center gap-2 transition-opacity hover:opacity-80">
+        <EnVisionMark className="text-foreground h-8 w-8" />
+        <span className="font-serif text-2xl tracking-tight">EnVision</span>
+      </Link>
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold tracking-tight">
@@ -98,7 +104,7 @@ export default function LoginPage() {
           </div>
           <button
             type="submit"
-            className="bg-primary-500 hover:bg-primary-600 flex w-full items-center justify-center rounded-md px-4 py-2 text-white transition-colors disabled:opacity-50"
+            className="bg-foreground text-background hover:bg-foreground/90 flex w-full items-center justify-center rounded-lg px-4 py-2 font-medium transition-colors disabled:opacity-50"
             disabled={loading}
           >
             {loading ? (

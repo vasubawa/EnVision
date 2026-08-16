@@ -16,13 +16,15 @@ export function NewSessionForm({ isAuthenticated }: { isAuthenticated: boolean }
   }
 
   return (
-    <form action={handleSubmit} className="flex flex-col items-center">
+    <form action={handleSubmit} className="flex w-full flex-col items-center">
       <button
         type="submit"
-        className="group bg-primary-500 hover:bg-primary-600 shadow-primary-500/20 mb-4 flex items-center gap-2 rounded-full px-8 py-4 text-white shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl active:translate-y-0"
+        className="bg-card border-border hover:border-foreground/20 text-foreground group flex w-full max-w-2xl items-center justify-between gap-2 rounded-2xl border px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]"
       >
-        <Plus className="h-5 w-5 transition-transform group-hover:rotate-90" />
-        <span className="font-medium">New Session</span>
+        <span className="text-foreground/50 ml-2 text-base">Start a new reasoning session...</span>
+        <div className="bg-foreground text-background flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105">
+          <Plus className="h-5 w-5" />
+        </div>
       </button>
     </form>
   )
