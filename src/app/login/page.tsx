@@ -5,12 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { Turnstile } from '@marsidev/react-turnstile'
 
 export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string>('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -24,6 +26,7 @@ export default function LoginPage() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          captchaToken,
         },
       })
       if (error) {
@@ -101,6 +104,15 @@ export default function LoginPage() {
               'Sign In'
             )}
           </button>
+
+          {isSignUp && (
+            <div className="mt-4 flex justify-center">
+              <Turnstile
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onSuccess={(token) => setCaptchaToken(token)}
+              />
+            </div>
+          )}
         </form>
 
         <div className="text-center text-sm">
