@@ -2,20 +2,7 @@ import { NextResponse, NextRequest } from 'next/server'
 import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
-
-interface Feedback {
-  isCorrect: boolean
-  suggestion: string
-}
-
-function isFeedbackShape(obj: unknown): obj is Feedback {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof (obj as Feedback).suggestion === 'string' &&
-    typeof (obj as Feedback).isCorrect === 'boolean'
-  )
-}
+import { type Feedback, isFeedbackShape } from '@/types/feedback'
 
 export const maxDuration = 60
 

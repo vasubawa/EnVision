@@ -252,8 +252,8 @@ export function Whiteboard() {
       const delta = opt.e.deltaY
       let zoom = canvas.getZoom()
       zoom *= 0.999 ** delta
-      if (zoom > 500) zoom = 500
-      if (zoom < 0.01) zoom = 0.01
+      if (zoom > 50) zoom = 50
+      if (zoom < 0.05) zoom = 0.05
       canvas.zoomToPoint(new fabric.Point(opt.e.offsetX, opt.e.offsetY), zoom)
       opt.e.preventDefault()
       opt.e.stopPropagation()
@@ -418,8 +418,8 @@ export function Whiteboard() {
             if (initialTouchDistance > 0) {
               const scale = currentDistance / initialTouchDistance
               let zoom = canvas.getZoom() * scale
-              if (zoom > 500) zoom = 500
-              if (zoom < 0.01) zoom = 0.01
+              if (zoom > 50) zoom = 50
+              if (zoom < 0.05) zoom = 0.05
               canvas.zoomToPoint(new fabric.Point(currentCenter.x, currentCenter.y), zoom)
             }
             initialTouchDistance = currentDistance

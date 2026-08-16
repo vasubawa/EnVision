@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         }
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.error('Failed to transcribe canvas for chat.')
+        console.error('Failed to transcribe canvas for chat.', e)
       } finally {
         if (visionTimeout) clearTimeout(visionTimeout)
       }
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: unknown) {
     // eslint-disable-next-line no-console
-    console.error('chat error: An internal error occurred.')
+    console.error('chat error: An internal error occurred.', error)
     return new Response(JSON.stringify({ error: 'An internal error occurred.' }), { status: 500 })
   }
 }
