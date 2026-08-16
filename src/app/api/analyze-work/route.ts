@@ -5,8 +5,7 @@ import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { type Feedback, isFeedbackShape } from '@/types/feedback'
 
 // Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined.
-// Note: Vercel Hobby plans hard-cap functions at 60s regardless of this value.
-export const maxDuration = 75
+export const maxDuration = 90
 
 export async function POST(req: NextRequest) {
   const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 10, windowMs: 60_000 })

@@ -11,7 +11,7 @@ An AI-tutored whiteboard for physics, chemistry, and calculus. Upload a problem 
 
 ## Getting started
 
-1. Copy `.env.example` to `.env.local` and fill in the Supabase and model provider keys.
+1. Copy `.env.example` to `.env.local` and fill in the Supabase and model provider keys. `CRON_SECRET` is a required environment variable in production, and keep-alive requests must use its value as the `Bearer` token.
 2. Install dependencies and run the dev server:
 
    ```bash

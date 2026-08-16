@@ -4,9 +4,14 @@ import { createAdminClient } from '@/lib/supabase/server'
 // Pinged daily by the Vercel cron in vercel.json so the Supabase project
 // (free tier) doesn't get auto-paused for inactivity.
 export async function GET(req: NextRequest) {
-  if (process.env.CRON_SECRET) {
+  const secret = process.env.CRON_SECRET
+  if (!secret && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (secret) {
     const authHeader = req.headers.get('authorization')
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (authHeader !== `Bearer ${secret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }

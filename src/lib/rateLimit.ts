@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 // low-traffic demo; it does not share state across regions/instances. If usage
 // grows, swap this for a shared store (e.g. Upstash Redis) without changing callers.
 const hits = new Map<string, number[]>()
+const MAX_CLIENTS = 1000
 
 function clientId(req: NextRequest): string {
   return (
@@ -20,6 +21,23 @@ export function rateLimit(
   const id = clientId(req)
   const now = Date.now()
   const windowStart = now - windowMs
+
+  // Prune inactive clients when reaching the limit
+  if (hits.size >= MAX_CLIENTS && !hits.has(id)) {
+    for (const [key, timestamps] of hits.entries()) {
+      const active = timestamps.filter((t) => t > windowStart)
+      if (active.length === 0) {
+        hits.delete(key)
+      } else {
+        hits.set(key, active)
+      }
+    }
+    // Evict oldest remaining if still at limit
+    if (hits.size >= MAX_CLIENTS) {
+      const firstKey = hits.keys().next().value
+      if (firstKey) hits.delete(firstKey)
+    }
+  }
 
   const recent = (hits.get(id) ?? []).filter((t) => t > windowStart)
 

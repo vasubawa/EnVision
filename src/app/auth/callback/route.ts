@@ -8,8 +8,17 @@ export async function GET(request: Request) {
   // same-site path, otherwise a crafted magic-link URL could redirect a
   // freshly-authenticated user off-site (e.g. ?next=https://evil.com or //evil.com)
   const rawNext = searchParams.get('next')
-  const next =
-    rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/workspace'
+  let next = '/workspace'
+  if (rawNext) {
+    try {
+      const parsedNext = new URL(rawNext, origin)
+      if (parsedNext.origin === origin) {
+        next = rawNext
+      }
+    } catch {
+      // ignore invalid URLs and fallback to /workspace
+    }
+  }
 
   if (code) {
     const supabase = await createClient()

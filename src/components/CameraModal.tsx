@@ -18,6 +18,7 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
 
   useEffect(() => {
     let cancelled = false
+    let activeStream: MediaStream | null = null
 
     if (isOpen) {
       setTimeout(() => setError(null), 0)
@@ -30,6 +31,7 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
             mediaStream.getTracks().forEach((track) => track.stop())
             return
           }
+          activeStream = mediaStream
           setStream(mediaStream)
           if (videoRef.current) {
             videoRef.current.srcObject = mediaStream
@@ -47,10 +49,10 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
 
     return () => {
       cancelled = true
-      setStream((current) => {
-        current?.getTracks().forEach((track) => track.stop())
-        return null
-      })
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop())
+      }
+      setStream(null)
     }
   }, [isOpen])
 
