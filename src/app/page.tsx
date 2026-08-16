@@ -4,11 +4,14 @@ import Typewriter from 'typewriter-effect'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AuthMenu } from '@/components/AuthMenu'
 import { EnVisionMark } from '@/components/EnVisionMark'
+import { BackgroundMath } from '@/components/BackgroundMath'
 import { UploadDropzone } from '@/components/UploadDropzone'
 
 export default function LandingPage() {
   return (
-    <div className="animate-fade-in-up relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6">
+      <BackgroundMath />
+
       {/* Top Bar */}
       <div className="absolute top-0 right-0 left-0 z-20 flex items-center justify-between p-5">
         <div className="text-foreground flex items-center gap-2.5">
