@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: MODELS.vision.model,
           max_tokens: 2000,
-          reasoning_budget: 4096,
+          chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
           temperature: 0.6,
           top_p: 0.95,
           response_format: { type: 'json_object' },

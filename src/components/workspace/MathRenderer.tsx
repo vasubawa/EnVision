@@ -214,14 +214,41 @@ export const MathRenderer: React.FC<MathRendererProps> = React.memo(function Mat
   content,
   className = '',
 }) {
-  let preprocessed = wrapBareLatex(content)
+  // Standardize LaTeX delimiters to $/$$ *before* wrapBareLatex runs. Without this,
+  // \( \) and \[ \] content isn't recognized by the "already-delimited" protection
+  // step below, so it falls into the bare-LaTeX word-wrapping heuristic and gets
+  // mangled (split token-by-token instead of treated as one math expression).
+  let preprocessed = content
+    .replace(/\\\(/g, '$')
+    .replace(/\\\)/g, '$')
+    .replace(/\\\[/g, '$$$$')
+    .replace(/\\\]/g, '$$$$')
+
+  preprocessed = wrapBareLatex(preprocessed)
 
   preprocessed = preprocessed.replace(/\\(i*nt|oint)([^\s\\])/g, '\\$1 $2')
   preprocessed = preprocessed.replace(/[“”]/g, '"')
 
   return (
     <div className={`text-sm leading-relaxed ${className}`}>
-      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+      <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={{
+          // Tailwind's Preflight reset strips list-style/margins from ul/ol/li by
+          // default, so without these overrides markdown lists render as plain,
+          // unmarked, unindented text.
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+          ul: ({ children }) => (
+            <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
+          ),
+          li: ({ children }) => <li className="pl-0.5">{children}</li>,
+          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        }}
+      >
         {preprocessed}
       </ReactMarkdown>
     </div>
