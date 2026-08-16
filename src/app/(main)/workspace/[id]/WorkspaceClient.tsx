@@ -3,9 +3,7 @@
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { ArrowLeft, MessageSquare, X } from 'lucide-react'
-import { AuthMenu } from '@/components/AuthMenu'
+import { MessageSquare, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import dynamic from 'next/dynamic'
 const Whiteboard = dynamic(
@@ -80,66 +78,12 @@ export default function WorkspaceClient({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  const handleLeave = async () => {
-    if (
-      !window.confirm(
-        'Are you sure you want to leave? Make sure your work is saved or your canvas progress will be lost.',
-      )
-    ) {
-      return
-    }
-
-    // Attempt to flush any pending debounced save
-    if (getCanvasJson) {
-      try {
-        const jsonStr = getCanvasJson()
-        if (jsonStr) {
-          const filePath = `${workspace.user_id}/${workspace.id}/snapshot.json`
-          const file = new File([jsonStr], 'snapshot.json', { type: 'application/json' })
-
-          const { error: uploadError } = await supabase.storage
-            .from('workspace-snapshots')
-            .upload(filePath, file, { upsert: true })
-
-          if (!uploadError) {
-            await supabase
-              .from('workspaces')
-              .update({
-                canvas_snapshot_path: filePath,
-                canvas_snapshot_updated_at: new Date().toISOString(),
-              })
-              .eq('id', workspace.id)
-          }
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to save before leaving:', err)
-      }
-    }
-
-    router.push('/')
-  }
-
   return (
     <div className="text-foreground flex h-screen w-full flex-col overflow-hidden bg-transparent">
       {/* Workspace Header */}
-      <header className="border-border bg-card/60 z-50 flex h-14 shrink-0 items-center justify-between border-b px-4 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleLeave}
-            className="hover:bg-foreground/5 text-foreground/60 hover:text-foreground rounded-lg p-2 transition-colors"
-            aria-label="Return to dashboard"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div className="max-w-[200px] truncate font-serif text-sm font-medium">
-            {workspace.title || 'Blank Workspace'}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <div className="bg-border hidden h-4 w-px sm:block" />
-          <AuthMenu />
+      <header className="border-border/50 bg-background/50 z-40 flex h-14 shrink-0 items-center justify-center border-b px-4 backdrop-blur-md">
+        <div className="text-foreground/80 font-serif text-sm font-medium">
+          {workspace.title || 'Blank Workspace'}
         </div>
       </header>
 
