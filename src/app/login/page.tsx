@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [captchaToken, setCaptchaToken] = useState<string>('')
   const router = useRouter()
   const supabase = createClient()
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,12 +106,9 @@ export default function LoginPage() {
             )}
           </button>
 
-          {isSignUp && (
+          {isSignUp && siteKey && (
             <div className="mt-4 flex justify-center">
-              <Turnstile
-                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                onSuccess={(token) => setCaptchaToken(token)}
-              />
+              <Turnstile siteKey={siteKey} onSuccess={(token) => setCaptchaToken(token)} />
             </div>
           )}
         </form>
