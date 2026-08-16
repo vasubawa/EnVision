@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const visionAbort = new AbortController()
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 60_000)
+    const visionTimeout = setTimeout(() => visionAbort.abort(), 25_000)
 
     let visionRes: ChatCompletionResponse
     try {
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     )
 
     const deepAbort = new AbortController()
-    const deepTimeout = setTimeout(() => deepAbort.abort(), 60_000)
+    const deepTimeout = setTimeout(() => deepAbort.abort(), 30_000)
 
     let deepRes: ChatCompletionResponse
     try {
