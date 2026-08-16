@@ -1,29 +1,26 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
+import { type Feedback, isFeedbackShape } from '@/types/feedback'
 
-interface Feedback {
-  isCorrect: boolean
-  suggestion: string
-}
-
-function isFeedbackShape(obj: unknown): obj is Feedback {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof (obj as Feedback).suggestion === 'string' &&
-    typeof (obj as Feedback).isCorrect === 'boolean'
-  )
-}
-// Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined
-export const maxDuration = 60
+// Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined.
+export const maxDuration = 90
 
 export async function POST(req: NextRequest) {
+  const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 10, windowMs: 60_000 })
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } },
+    )
+  }
+
   try {
     const { canvasBase64 } = await req.json()
 
-    if (!canvasBase64) {
-      return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 })
+    if (!isValidCanvasImage(canvasBase64)) {
+      return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
     }
 
     // Step 1: Vision Transcription (45s timeout — reasoning model needs room to think)
@@ -42,7 +39,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: MODELS.vision.model,
           max_tokens: 2000,
-          reasoning_budget: 4096,
+          chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
           temperature: 0.6,
           top_p: 0.95,
           response_format: { type: 'json_object' },
@@ -204,11 +201,16 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(parsedResult)
   } catch (error: unknown) {
+    const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console
-    console.error('analyze-work error: An internal error occurred.')
+    console.error('analyze-work error:', isTimeout ? 'TIMEOUT' : 'An internal error occurred.')
     return NextResponse.json(
-      { error: 'An internal error occurred during analysis.' },
-      { status: 500 },
+      {
+        error: isTimeout
+          ? 'Analysis timed out. Please try again.'
+          : 'An internal error occurred during analysis.',
+      },
+      { status: isTimeout ? 504 : 500 },
     )
   }
 }

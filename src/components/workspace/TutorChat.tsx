@@ -191,7 +191,10 @@ export function TutorChat() {
 
   return (
     <div className="relative flex h-full w-full flex-col bg-transparent">
-      <div ref={scrollRef} className="flex flex-1 flex-col gap-6 overflow-y-auto scroll-smooth p-6">
+      <div
+        ref={scrollRef}
+        className="flex flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto scroll-smooth p-6"
+      >
         {/* Welcome message */}
         <div className="flex gap-4">
           <div className="bg-primary-500/10 border-primary-500/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
@@ -218,10 +221,10 @@ export function TutorChat() {
             )}
 
             <div
-              className={`flex max-w-[85%] flex-col ${entry.role === 'user' ? 'items-end' : 'items-start'}`}
+              className={`flex max-w-[85%] min-w-0 flex-col ${entry.role === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`text-[15px] leading-relaxed ${
+                className={`min-w-0 overflow-x-auto text-[15px] leading-relaxed wrap-break-word ${
                   entry.role === 'user'
                     ? 'bg-foreground/5 text-foreground rounded-2xl rounded-tr-sm px-4 py-2.5'
                     : entry.type === 'feedback'

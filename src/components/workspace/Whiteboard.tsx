@@ -182,7 +182,8 @@ export function Whiteboard() {
       })
     })
 
-    // Set up drawing brush
+    // Set up drawing brush with the color/size held at mount time; later changes
+    // are applied live by the effect below without recreating the canvas.
     const brush = new fabric.PencilBrush(canvas)
     brush.color = color
     brush.width = size
@@ -251,8 +252,8 @@ export function Whiteboard() {
       const delta = opt.e.deltaY
       let zoom = canvas.getZoom()
       zoom *= 0.999 ** delta
-      if (zoom > 500) zoom = 500
-      if (zoom < 0.01) zoom = 0.01
+      if (zoom > 50) zoom = 50
+      if (zoom < 0.05) zoom = 0.05
       canvas.zoomToPoint(new fabric.Point(opt.e.offsetX, opt.e.offsetY), zoom)
       opt.e.preventDefault()
       opt.e.stopPropagation()
@@ -417,8 +418,8 @@ export function Whiteboard() {
             if (initialTouchDistance > 0) {
               const scale = currentDistance / initialTouchDistance
               let zoom = canvas.getZoom() * scale
-              if (zoom > 500) zoom = 500
-              if (zoom < 0.01) zoom = 0.01
+              if (zoom > 50) zoom = 50
+              if (zoom < 0.05) zoom = 0.05
               canvas.zoomToPoint(new fabric.Point(currentCenter.x, currentCenter.y), zoom)
             }
             initialTouchDistance = currentDistance
@@ -530,7 +531,11 @@ export function Whiteboard() {
       canvas.dispose()
       fabricRef.current = null
     }
-  }, [file, handleAddFile, saveHistory, setGetCanvasImage, color, size])
+    // color/size are intentionally excluded: this effect only sets the brush's
+    // initial value. Live changes are applied by the effect below, which would
+    // otherwise fight with a full canvas rebuild on every color/size change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file, handleAddFile, saveHistory, setGetCanvasImage])
 
   // Update DOM attributes so Fabric event listeners can read current state without recreating canvas
   useEffect(() => {

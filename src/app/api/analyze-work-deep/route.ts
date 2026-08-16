@@ -1,33 +1,29 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
-
-interface Feedback {
-  isCorrect: boolean
-  suggestion: string
-}
-
-function isFeedbackShape(obj: unknown): obj is Feedback {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof (obj as Feedback).suggestion === 'string' &&
-    typeof (obj as Feedback).isCorrect === 'boolean'
-  )
-}
+import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
+import { type Feedback, isFeedbackShape } from '@/types/feedback'
 
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 5, windowMs: 60_000 })
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } },
+    )
+  }
+
   try {
     const { canvasBase64 } = await req.json()
 
-    if (!canvasBase64) {
-      return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 })
+    if (!isValidCanvasImage(canvasBase64)) {
+      return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
     }
 
     const visionAbort = new AbortController()
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 60_000)
+    const visionTimeout = setTimeout(() => visionAbort.abort(), 25_000)
 
     let visionRes: ChatCompletionResponse
     try {
@@ -41,7 +37,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: MODELS.vision.model,
           max_tokens: 2000,
-          reasoning_budget: 4096,
+          chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
           temperature: 0.6,
           top_p: 0.95,
           response_format: { type: 'json_object' },
@@ -74,7 +70,7 @@ export async function POST(req: NextRequest) {
     )
 
     const deepAbort = new AbortController()
-    const deepTimeout = setTimeout(() => deepAbort.abort(), 60_000)
+    const deepTimeout = setTimeout(() => deepAbort.abort(), 30_000)
 
     let deepRes: ChatCompletionResponse
     try {

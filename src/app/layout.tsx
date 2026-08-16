@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, Lora } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
@@ -18,6 +18,21 @@ export const metadata: Metadata = {
   title: 'EnVision | Master Your Subjects',
   description:
     'A physics, chemistry, and calculus-focused intelligent whiteboard. Upload your problem set and get Socratic feedback as you draw.',
+  openGraph: {
+    title: 'EnVision | Master Your Subjects',
+    description:
+      'A physics, chemistry, and calculus-focused intelligent whiteboard. Upload your problem set and get Socratic feedback as you draw.',
+    type: 'website',
+  },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fdfcfb' },
+    { media: '(prefers-color-scheme: dark)', color: '#1a1a1a' },
+  ],
 }
 
 export default function RootLayout({

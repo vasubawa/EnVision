@@ -105,11 +105,6 @@ body:is(.dark *) {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-/* Ink Bleed Hover — legacy class kept for backward compatibility */
-.ink-bleed-hover {
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
 /* Base utility for clean input containers */
 .claude-container {
   background-color: var(--card);
