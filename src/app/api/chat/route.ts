@@ -3,13 +3,26 @@ import { streamText, convertToModelMessages, type UIMessage } from 'ai'
 import { createGroq } from '@ai-sdk/groq'
 import { MODELS, apiKey, stripThinking } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 15, windowMs: 60_000 })
+  if (!allowed) {
+    return new Response(JSON.stringify({ error: 'Too many requests. Please slow down.' }), {
+      status: 429,
+      headers: { 'Retry-After': String(retryAfterSeconds) },
+    })
+  }
+
   try {
     const { messages, canvasBase64 }: { messages: UIMessage[]; canvasBase64?: string } =
       await req.json()
+
+    if (canvasBase64 && !isValidCanvasImage(canvasBase64)) {
+      return new Response(JSON.stringify({ error: 'Invalid canvas image.' }), { status: 400 })
+    }
 
     let systemPrompt =
       "You are a helpful Socratic tutor. Guide the student using hints and questions. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed in $ for inline and $$ for blocks. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\\\int$ instead of int, $\\\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O."
