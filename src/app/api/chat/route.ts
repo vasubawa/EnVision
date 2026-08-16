@@ -7,6 +7,17 @@ import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 
 export const maxDuration = 60
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getMessageText(message: any): string {
+  if (message.parts) {
+    return message.parts
+      .filter((part: unknown) => (part as { type: string }).type === 'text')
+      .map((part: unknown) => (part as { text: string }).text)
+      .join('')
+  }
+  return message.content || ''
+}
+
 export async function POST(req: NextRequest) {
   const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 15, windowMs: 60_000 })
   if (!allowed) {
@@ -86,10 +97,40 @@ export async function POST(req: NextRequest) {
       baseURL: MODELS.reasoning.apiBase,
     })
 
+    const workspaceId = req.nextUrl.searchParams.get('workspaceId')
+
+    // Optimistically save the user message to the DB if we have a workspaceId
+    if (workspaceId && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1]
+      if (lastMessage.role === 'user') {
+        const { createAdminClient } = await import('@/lib/supabase/server')
+        const supabase = createAdminClient()
+        await supabase.from('messages').insert({
+          id: lastMessage.id,
+          workspace_id: workspaceId,
+          role: 'user',
+          kind: 'chat',
+          content: getMessageText(lastMessage),
+        })
+      }
+    }
+
     const result = streamText({
       model: groq(MODELS.reasoning.model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
+      onFinish: async ({ text }) => {
+        if (workspaceId) {
+          const { createAdminClient } = await import('@/lib/supabase/server')
+          const supabase = createAdminClient()
+          await supabase.from('messages').insert({
+            workspace_id: workspaceId,
+            role: 'assistant',
+            kind: 'chat',
+            content: text,
+          })
+        }
+      },
     })
 
     return result.toUIMessageStreamResponse({

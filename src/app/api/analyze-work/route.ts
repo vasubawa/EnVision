@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { canvasBase64 } = await req.json()
+    const { canvasBase64, workspaceId } = await req.json()
 
     if (!isValidCanvasImage(canvasBase64)) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
@@ -199,7 +199,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(parsedResult)
+    // Save to database if workspaceId is provided
+    let savedId = undefined
+
+    if (workspaceId && parsedResult) {
+      try {
+        const { createAdminClient } = await import('@/lib/supabase/server')
+        const supabase = createAdminClient()
+        const { data } = await supabase
+          .from('messages')
+          .insert({
+            workspace_id: workspaceId,
+            role: 'assistant',
+            kind: 'feedback',
+            content: parsedResult.suggestion,
+            is_correct: parsedResult.isCorrect,
+          })
+          .select('id')
+          .single()
+
+        if (data) {
+          savedId = data.id
+        }
+      } catch (err) {
+        console.error('Failed to save feedback to DB:', err)
+      }
+    }
+
+    return NextResponse.json({ ...parsedResult, id: savedId })
   } catch (error: unknown) {
     const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console

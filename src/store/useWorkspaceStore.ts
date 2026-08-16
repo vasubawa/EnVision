@@ -8,6 +8,7 @@ interface WorkspaceState {
   // Hybrid Feed
   chatHistory: ChatEntry[]
   addChatEntry: (entry: ChatEntry) => void
+  setChatHistory: (entries: ChatEntry[]) => void
   clearChat: () => void
 
   // Canvas Image Capture
@@ -30,6 +31,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   chatHistory: [],
   addChatEntry: (entry) => set((state) => ({ chatHistory: [...state.chatHistory, entry] })),
+  setChatHistory: (entries) => set({ chatHistory: entries }),
   clearChat: () => set({ chatHistory: [] }),
 
   getCanvasImage: null,

@@ -19,7 +19,13 @@ interface Workspace {
   // Add other fields as needed
 }
 
-export default function WorkspaceClient({ workspace }: { workspace: Workspace }) {
+export default function WorkspaceClient({
+  workspace,
+  initialMessages,
+}: {
+  workspace: Workspace
+  initialMessages: unknown[]
+}) {
   const router = useRouter()
   const [isChatOpen, setIsChatOpen] = useState(true)
 
@@ -89,7 +95,7 @@ export default function WorkspaceClient({ workspace }: { workspace: Workspace })
               </button>
             </div>
             <div className="relative min-h-0 flex-1">
-              <TutorChat />
+              <TutorChat workspaceId={workspace.id} initialMessages={initialMessages} />
             </div>
           </div>
         </div>

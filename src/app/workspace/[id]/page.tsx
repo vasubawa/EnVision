@@ -14,15 +14,21 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
     redirect('/login')
   }
 
-  const { data: workspace, error } = await supabase
-    .from('workspaces')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [workspaceResponse, messagesResponse] = await Promise.all([
+    supabase.from('workspaces').select('*').eq('id', id).single(),
+    supabase
+      .from('messages')
+      .select('*')
+      .eq('workspace_id', id)
+      .order('created_at', { ascending: true }),
+  ])
 
-  if (error || !workspace) {
+  const { data: workspace, error: workspaceError } = workspaceResponse
+  const { data: messages, error: messagesError } = messagesResponse
+
+  if (workspaceError || !workspace) {
     notFound()
   }
 
-  return <WorkspaceClient workspace={workspace} />
+  return <WorkspaceClient workspace={workspace} initialMessages={messages || []} />
 }

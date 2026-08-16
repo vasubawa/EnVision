@@ -19,10 +19,17 @@ function getMessageText(message: ChatMessage): string {
     .join('')
 }
 
-export function TutorChat() {
+export function TutorChat({
+  workspaceId,
+  initialMessages = [],
+}: {
+  workspaceId: string
+  initialMessages?: unknown[]
+}) {
   const {
     chatHistory,
     addChatEntry,
+    setChatHistory,
     getCanvasImage,
     lastCanvasUpdate,
     isAutoCheckEnabled,
@@ -35,10 +42,42 @@ export function TutorChat() {
   const lastAnalyzedRef = useRef<number>(0)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), [])
+  // Initialize feedback messages from DB
+  useEffect(() => {
+    const feedbackMessages = initialMessages
+      .filter((m) => m.kind === 'feedback')
+      .map((m) => ({
+        id: m.id,
+        timestamp: new Date(m.created_at).getTime(),
+        role: m.role as 'assistant',
+        type: 'feedback' as const,
+        content: m.content,
+        isCorrect: m.is_correct || false,
+      }))
+    setChatHistory(feedbackMessages)
+  }, [initialMessages, setChatHistory])
+
+  // Extract initial chat messages for useChat
+  const initialChatMessages = useMemo(() => {
+    return initialMessages
+      .filter((m) => m.kind === 'chat')
+      .map((m) => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        metadata: { createdAt: new Date(m.created_at).getTime() },
+      }))
+  }, [initialMessages])
+
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: `/api/chat?workspaceId=${workspaceId}` }),
+    [workspaceId],
+  )
 
   const { messages, sendMessage, status } = useChat<ChatMessage>({
     transport,
+    // @ts-expect-error - initialMessages type might mismatch
+    initialMessages: initialChatMessages,
     onError: (err: Error) => toast.error(err.message),
   })
   const isLoading = status === 'submitted' || status === 'streaming'
@@ -98,14 +137,14 @@ export function TutorChat() {
       const res = await fetch('/api/analyze-work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canvasBase64 }),
+        body: JSON.stringify({ canvasBase64, workspaceId }),
       })
 
       if (!res.ok) throw new Error('Analysis failed')
       const data = await res.json()
 
       addChatEntry({
-        id: Math.random().toString(36).substring(7),
+        id: data.id || Math.random().toString(36).substring(7),
         timestamp: Date.now(),
         role: 'assistant',
         type: 'feedback',
@@ -119,7 +158,7 @@ export function TutorChat() {
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry])
+  }, [getCanvasImage, addChatEntry, workspaceId])
 
   const handleDeepAnalysis = useCallback(async () => {
     if (!getCanvasImage) return
@@ -131,14 +170,14 @@ export function TutorChat() {
       const res = await fetch('/api/analyze-work-deep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canvasBase64 }),
+        body: JSON.stringify({ canvasBase64, workspaceId }),
       })
 
       if (!res.ok) throw new Error('Deep analysis failed')
       const data = await res.json()
 
       addChatEntry({
-        id: Math.random().toString(36).substring(7),
+        id: data.id || Math.random().toString(36).substring(7),
         timestamp: Date.now(),
         role: 'assistant',
         type: 'feedback',
@@ -152,7 +191,7 @@ export function TutorChat() {
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry])
+  }, [getCanvasImage, addChatEntry, workspaceId])
 
   // Automated feedback on inactivity (5 seconds)
   useEffect(() => {
