@@ -68,7 +68,10 @@ export default function SidebarClient({
           <div className="shrink-0 p-3">
             <form action={createWorkspace}>
               <input type="hidden" name="captchaToken" value={captchaToken} />
-              <button className="border-border/50 bg-background hover:bg-foreground/5 mb-2 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm transition-colors">
+              <button 
+                disabled={!isAuthenticated && !!siteKey && !captchaToken}
+                className="border-border/50 bg-background hover:bg-foreground/5 mb-2 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm transition-colors disabled:opacity-50"
+              >
                 <span className="font-medium">New session</span>
                 <Plus className="h-4 w-4" />
               </button>

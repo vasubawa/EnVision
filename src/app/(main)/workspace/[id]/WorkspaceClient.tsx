@@ -1,7 +1,6 @@
 'use client'
 
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { MessageSquare, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -28,7 +27,6 @@ export default function WorkspaceClient({
   initialMessages: unknown[]
   initialCanvasState: string | null
 }) {
-  const router = useRouter()
   const [isChatOpen, setIsChatOpen] = useState(true)
   const { lastCanvasUpdate, getCanvasJson } = useWorkspaceStore()
   const supabase = createClient()
