@@ -10,6 +10,7 @@ import { EnVisionMark } from '@/components/EnVisionMark'
 import { AuthMenu } from '@/components/AuthMenu'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { toast } from 'sonner'
+import { useCaptcha } from './CaptchaModal'
 
 interface Workspace {
   id: string
@@ -33,6 +34,7 @@ export default function SidebarClient({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
+  const { requireCaptcha } = useCaptcha()
 
   // Persist sidebar open/closed; first visit defaults to open on desktop
   useEffect(() => {
@@ -54,7 +56,11 @@ export default function SidebarClient({
     if (isCreating) return
     setIsCreating(true)
     try {
-      const id = await createWorkspace()
+      const captchaToken = await requireCaptcha()
+      const formData = new FormData()
+      if (captchaToken) formData.append('captchaToken', captchaToken)
+
+      const id = await createWorkspace(formData)
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create session')
