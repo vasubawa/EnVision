@@ -8,7 +8,7 @@ import { Plus, MessageSquare, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { EnVisionMark } from '@/components/EnVisionMark'
 import { AuthMenu } from '@/components/AuthMenu'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { Turnstile } from '@marsidev/react-turnstile'
+import { useCaptcha } from '@/components/CaptchaModal'
 
 interface Workspace {
   id: string
@@ -26,9 +26,16 @@ export default function SidebarClient({
   children: React.ReactNode
 }) {
   const [isOpen, setIsOpen] = useState(true)
-  const [captchaToken, setCaptchaToken] = useState<string>('')
   const pathname = usePathname()
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const { requireCaptcha } = useCaptcha()
+
+  const handleSubmit = async (formData: FormData) => {
+    if (!isAuthenticated) {
+      const token = await requireCaptcha()
+      formData.append('captchaToken', token)
+    }
+    await createWorkspace(formData)
+  }
 
   return (
     <div className="bg-background flex h-screen overflow-hidden">
@@ -66,20 +73,11 @@ export default function SidebarClient({
 
           {/* New Workspace Button */}
           <div className="shrink-0 p-3">
-            <form action={createWorkspace}>
-              <input type="hidden" name="captchaToken" value={captchaToken} />
-              <button 
-                disabled={!isAuthenticated && !!siteKey && !captchaToken}
-                className="border-border/50 bg-background hover:bg-foreground/5 mb-2 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm transition-colors disabled:opacity-50"
-              >
+            <form action={handleSubmit}>
+              <button className="border-border/50 bg-background hover:bg-foreground/5 mb-2 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm transition-colors">
                 <span className="font-medium">New session</span>
                 <Plus className="h-4 w-4" />
               </button>
-              {!isAuthenticated && siteKey && (
-                <div className="mt-2 origin-top-left scale-90">
-                  <Turnstile siteKey={siteKey} onSuccess={(token) => setCaptchaToken(token)} />
-                </div>
-              )}
             </form>
           </div>
 
