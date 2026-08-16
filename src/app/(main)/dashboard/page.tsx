@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { Plus } from 'lucide-react'
 import { createWorkspace } from './actions'
+import { NewSessionForm } from './NewSessionForm'
 import { EnVisionMark } from '@/components/EnVisionMark'
 import { BackgroundMath } from '@/components/BackgroundMath'
 
@@ -8,7 +8,9 @@ export default async function DashboardPage() {
   // We can still call getUser to ensure cookies/auth state is refreshed,
   // but we don't need to fetch workspaces because the Sidebar handles that.
   const supabase = await createClient()
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   return (
     <div className="bg-background text-foreground relative flex min-h-screen flex-col items-center justify-center overflow-hidden">
@@ -31,15 +33,7 @@ export default async function DashboardPage() {
           tutoring.
         </p>
 
-        <form action={createWorkspace}>
-          <button
-            type="submit"
-            className="group bg-primary-500 hover:bg-primary-600 shadow-primary-500/20 flex items-center gap-2 rounded-full px-8 py-4 text-white shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl active:translate-y-0"
-          >
-            <Plus className="h-5 w-5 transition-transform group-hover:rotate-90" />
-            <span className="font-medium">New Session</span>
-          </button>
-        </form>
+        <NewSessionForm isAuthenticated={!!user} />
       </main>
     </div>
   )

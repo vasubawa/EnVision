@@ -8,6 +8,7 @@ import { Plus, MessageSquare, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { EnVisionMark } from '@/components/EnVisionMark'
 import { AuthMenu } from '@/components/AuthMenu'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { Turnstile } from '@marsidev/react-turnstile'
 
 interface Workspace {
   id: string
@@ -17,12 +18,15 @@ interface Workspace {
 
 export default function SidebarClient({
   workspaces,
+  isAuthenticated,
   children,
 }: {
   workspaces: Workspace[]
+  isAuthenticated: boolean
   children: React.ReactNode
 }) {
   const [isOpen, setIsOpen] = useState(true)
+  const [captchaToken, setCaptchaToken] = useState<string>('')
   const pathname = usePathname()
 
   return (
@@ -37,7 +41,7 @@ export default function SidebarClient({
 
       {/* Sidebar container */}
       <div
-        className={`border-border bg-background fixed inset-y-0 left-0 z-50 flex flex-col border-r transition-all duration-300 md:relative ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:w-0 md:border-r-0'}`}
+        className={`border-border bg-background fixed inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r transition-all duration-300 md:relative ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:w-0 md:border-r-0'}`}
       >
         <div
           className={`flex h-full w-64 flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'}`}
@@ -62,10 +66,19 @@ export default function SidebarClient({
           {/* New Workspace Button */}
           <div className="shrink-0 p-3">
             <form action={createWorkspace}>
-              <button className="border-border/50 bg-background hover:bg-foreground/5 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm transition-colors">
+              <input type="hidden" name="captchaToken" value={captchaToken} />
+              <button className="border-border/50 bg-background hover:bg-foreground/5 mb-2 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm transition-colors">
                 <span className="font-medium">New session</span>
                 <Plus className="h-4 w-4" />
               </button>
+              {!isAuthenticated && (
+                <div className="mt-2 origin-top-left scale-90">
+                  <Turnstile
+                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                    onSuccess={(token) => setCaptchaToken(token)}
+                  />
+                </div>
+              )}
             </form>
           </div>
 
