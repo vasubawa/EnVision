@@ -42,6 +42,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
       .download(workspace.canvas_snapshot_path)
     if (error) {
       snapshotError = true
+      // eslint-disable-next-line no-console
       console.error('Failed to download canvas snapshot:', error)
     } else if (data) {
       initialCanvasState = await data.text()

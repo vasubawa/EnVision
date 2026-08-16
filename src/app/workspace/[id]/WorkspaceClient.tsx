@@ -63,6 +63,7 @@ export default function WorkspaceClient({
 
         if (dbError) throw dbError
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error('Auto-save failed:', err)
       }
     }, 2000) // Debounce for 2 seconds
@@ -111,6 +112,7 @@ export default function WorkspaceClient({
           }
         }
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error('Failed to save before leaving:', err)
       }
     }

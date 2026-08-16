@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Trash2, Clock, Image as ImageIcon } from 'lucide-react'
 import { createWorkspace, deleteWorkspace } from './actions'
@@ -20,18 +19,19 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  let workspaces: Array<{ id: string; title: string; updated_at: string }> | null = []
+  if (user) {
+    const { data, error } = await supabase
+      .from('workspaces')
+      .select('*')
+      .order('updated_at', { ascending: false })
 
-  const { data: workspaces, error } = await supabase
-    .from('workspaces')
-    .select('*')
-    .order('updated_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching workspaces:', error)
-    throw new Error('Failed to load workspaces')
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error fetching workspaces:', error)
+      throw new Error('Failed to load workspaces')
+    }
+    workspaces = data
   }
 
   return (
