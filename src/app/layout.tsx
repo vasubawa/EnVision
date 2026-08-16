@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, Lora } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { CaptchaProvider } from '@/components/CaptchaModal'
 import { Toaster } from 'sonner'
 const inter = Inter({
   variable: '--font-inter',
@@ -52,8 +53,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster position="bottom-right" richColors theme="system" />
+          <CaptchaProvider>
+            {children}
+            <Toaster position="bottom-right" richColors theme="system" />
+          </CaptchaProvider>
         </ThemeProvider>
       </body>
     </html>
