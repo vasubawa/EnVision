@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
 import { createWorkspace } from '@/app/(main)/dashboard/actions'
 import { CameraModal } from './CameraModal'
+import { useCaptcha } from './CaptchaModal'
 
 function formatFileSize(bytes: number) {
   if (bytes === 0) return '0 Bytes'
@@ -42,6 +43,7 @@ export function UploadDropzone() {
   const router = useRouter()
   const setWorkspaceFile = useWorkspaceStore((state) => state.setFile)
   const setPendingFileForChat = useWorkspaceStore((state) => state.setPendingFileForChat)
+  const { requireCaptcha } = useCaptcha()
 
   const handleStartLearning = async (useFile: boolean = true) => {
     if (useFile && !file) return
@@ -59,7 +61,11 @@ export function UploadDropzone() {
         setWorkspaceFile(null)
       }
 
-      const id = await createWorkspace()
+      const captchaToken = await requireCaptcha()
+      const formData = new FormData()
+      if (captchaToken) formData.append('captchaToken', captchaToken)
+
+      const id = await createWorkspace(formData)
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create workspace')
