@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
     }
 
     let systemPrompt =
-      "You are a helpful Socratic tutor. Guide the student using hints and questions. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed in $ for inline and $$ for blocks. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\\\int$ instead of int, $\\\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O."
+      "You are a helpful Socratic tutor. Guide the student using hints and questions. Keep replies SHORT: 2-4 sentences, or at most one short list of 3-4 items — never a multi-part outline covering several problems or steps at once. Ask ONE focused question at a time and wait for the student's answer before asking the next. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed ONLY in $ for inline and $$ for blocks — NEVER use \\\\( \\\\) or \\\\[ \\\\] delimiters. Write each formula EXACTLY ONCE: never restate, re-derive, or 'spell out' a formula a second time in different notation, and never break a formula or sentence into one word per line. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\\\int$ instead of int, $\\\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O. When listing a few short items, format them as a markdown list using '- ' or '1. ' rather than separate plain lines — this renders as a proper bulleted/numbered list."
 
     // If a canvas image was sent, transcribe it first so the tutor can "see" it
     if (canvasBase64) {
       const visionAbort = new AbortController()
       let visionTimeout: NodeJS.Timeout | null = null
       try {
-        visionTimeout = setTimeout(() => visionAbort.abort(), 45_000)
+        visionTimeout = setTimeout(() => visionAbort.abort(), 20_000)
         const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
           signal: visionAbort.signal,
           method: 'POST',
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             model: MODELS.vision.model,
             max_tokens: 2000,
-            reasoning_budget: 4096,
+            chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
             temperature: 0.6,
             top_p: 0.95,
             response_format: { type: 'json_object' },
