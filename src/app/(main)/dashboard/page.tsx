@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { createWorkspace } from './actions'
 import { NewSessionForm } from './NewSessionForm'
 import { EnVisionMark } from '@/components/EnVisionMark'
 import { BackgroundMath } from '@/components/BackgroundMath'
