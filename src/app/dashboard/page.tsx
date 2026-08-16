@@ -31,6 +31,7 @@ export default async function DashboardPage() {
 
   if (error) {
     console.error('Error fetching workspaces:', error)
+    throw new Error('Failed to load workspaces')
   }
 
   return (
@@ -79,7 +80,11 @@ export default async function DashboardPage() {
                 key={workspace.id}
                 className="group envision-card relative flex h-64 flex-col overflow-hidden"
               >
-                <Link href={`/workspace/${workspace.id}`} className="absolute inset-0 z-10" />
+                <Link
+                  href={`/workspace/${workspace.id}`}
+                  className="absolute inset-0 z-10"
+                  aria-label={`Open workspace: ${workspace.title}`}
+                />
 
                 {/* Card Header */}
                 <div className="flex grow flex-col p-6">
@@ -94,7 +99,7 @@ export default async function DashboardPage() {
                 </div>
 
                 {/* Card Actions (Delete) */}
-                <div className="absolute top-4 right-4 z-20 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="absolute top-4 right-4 z-20 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                   <form
                     action={async () => {
                       'use server'
@@ -103,8 +108,8 @@ export default async function DashboardPage() {
                   >
                     <button
                       type="submit"
-                      className="bg-background/80 text-foreground/50 rounded-full p-2 backdrop-blur transition-colors hover:bg-red-500/10 hover:text-red-500"
-                      aria-label="Delete workspace"
+                      className="bg-background/80 text-foreground/50 rounded-full p-2 backdrop-blur transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                      aria-label={`Delete workspace: ${workspace.title}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

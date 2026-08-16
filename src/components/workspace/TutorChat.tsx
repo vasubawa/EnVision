@@ -67,13 +67,13 @@ export function TutorChat({
   }, [initialMessages, setChatHistory])
 
   // Extract initial chat messages for useChat
-  const initialChatMessages = useMemo(() => {
+  const initialChatMessages: ChatMessage[] = useMemo(() => {
     return (initialMessages as DBMessage[])
       .filter((m) => m.kind === 'chat')
       .map((m) => ({
         id: m.id,
         role: m.role as 'user' | 'assistant',
-        content: m.content,
+        parts: [{ type: 'text' as const, text: m.content }],
         metadata: { createdAt: new Date(m.created_at).getTime() },
       }))
   }, [initialMessages])
@@ -85,7 +85,6 @@ export function TutorChat({
 
   const { messages, sendMessage, status } = useChat<ChatMessage>({
     transport,
-    // @ts-expect-error - initialMessages type might mismatch
     initialMessages: initialChatMessages,
     onError: (err: Error) => toast.error(err.message),
   })

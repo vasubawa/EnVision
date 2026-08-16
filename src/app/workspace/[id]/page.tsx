@@ -30,14 +30,26 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
     notFound()
   }
 
+  if (messagesError) {
+    throw new Error('Failed to load chat history')
+  }
+
   let initialCanvasState = null
+  let snapshotError = false
   if (workspace.canvas_snapshot_path) {
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from('workspace-snapshots')
       .download(workspace.canvas_snapshot_path)
-    if (data) {
+    if (error) {
+      snapshotError = true
+      console.error('Failed to download canvas snapshot:', error)
+    } else if (data) {
       initialCanvasState = await data.text()
     }
+  }
+
+  if (snapshotError) {
+    throw new Error('Failed to load canvas snapshot')
   }
 
   return (

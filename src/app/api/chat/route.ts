@@ -103,15 +103,38 @@ export async function POST(req: NextRequest) {
     if (workspaceId && messages.length > 0) {
       const lastMessage = messages[messages.length - 1]
       if (lastMessage.role === 'user') {
-        const { createAdminClient } = await import('@/lib/supabase/server')
-        const supabase = createAdminClient()
-        await supabase.from('messages').insert({
+        const { createClient } = await import('@/lib/supabase/server')
+        const supabase = await createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+        }
+
+        // Verify user owns the workspace
+        const { data: workspace } = await supabase
+          .from('workspaces')
+          .select('user_id')
+          .eq('id', workspaceId)
+          .single()
+
+        if (!workspace || workspace.user_id !== user.id) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 })
+        }
+
+        const { error: insertError } = await supabase.from('messages').insert({
           id: lastMessage.id,
           workspace_id: workspaceId,
           role: 'user',
           kind: 'chat',
           content: getMessageText(lastMessage),
         })
+
+        if (insertError) {
+          return new Response(JSON.stringify({ error: 'Failed to save message' }), { status: 500 })
+        }
       }
     }
 
@@ -121,14 +144,19 @@ export async function POST(req: NextRequest) {
       messages: await convertToModelMessages(messages),
       onFinish: async ({ text }) => {
         if (workspaceId) {
-          const { createAdminClient } = await import('@/lib/supabase/server')
-          const supabase = createAdminClient()
-          await supabase.from('messages').insert({
+          const { createClient } = await import('@/lib/supabase/server')
+          const supabase = await createClient()
+          const { error: insertError } = await supabase.from('messages').insert({
             workspace_id: workspaceId,
             role: 'assistant',
             kind: 'chat',
             content: text,
           })
+
+          if (insertError) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to persist assistant message:', insertError)
+          }
         }
       },
     })

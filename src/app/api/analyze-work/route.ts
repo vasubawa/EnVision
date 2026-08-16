@@ -203,26 +203,45 @@ export async function POST(req: NextRequest) {
     let savedId = undefined
 
     if (workspaceId && parsedResult) {
-      try {
-        const { createAdminClient } = await import('@/lib/supabase/server')
-        const supabase = createAdminClient()
-        const { data } = await supabase
-          .from('messages')
-          .insert({
-            workspace_id: workspaceId,
-            role: 'assistant',
-            kind: 'feedback',
-            content: parsedResult.suggestion,
-            is_correct: parsedResult.isCorrect,
-          })
-          .select('id')
-          .single()
+      const { createClient } = await import('@/lib/supabase/server')
+      const supabase = await createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-        if (data) {
-          savedId = data.id
-        }
-      } catch (err) {
-        console.error('Failed to save feedback to DB:', err)
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      // Verify user owns the workspace
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('user_id')
+        .eq('id', workspaceId)
+        .single()
+
+      if (!workspace || workspace.user_id !== user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      const { data, error: insertError } = await supabase
+        .from('messages')
+        .insert({
+          workspace_id: workspaceId,
+          role: 'assistant',
+          kind: 'feedback',
+          content: parsedResult.suggestion,
+          is_correct: parsedResult.isCorrect,
+        })
+        .select('id')
+        .single()
+
+      if (insertError) {
+        return NextResponse.json({ error: 'Failed to save feedback' }, { status: 500 })
+      }
+
+      if (data) {
+        savedId = data.id
       }
     }
 

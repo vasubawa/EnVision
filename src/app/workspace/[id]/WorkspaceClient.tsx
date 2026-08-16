@@ -79,10 +79,43 @@ export default function WorkspaceClient({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  const handleLeave = () => {
-    if (window.confirm('Are you sure you want to leave? Your canvas progress will be lost.')) {
-      router.push('/')
+  const handleLeave = async () => {
+    if (
+      !window.confirm(
+        'Are you sure you want to leave? Make sure your work is saved or your canvas progress will be lost.',
+      )
+    ) {
+      return
     }
+
+    // Attempt to flush any pending debounced save
+    if (getCanvasJson) {
+      try {
+        const jsonStr = getCanvasJson()
+        if (jsonStr) {
+          const filePath = `${workspace.user_id}/${workspace.id}/snapshot.json`
+          const file = new File([jsonStr], 'snapshot.json', { type: 'application/json' })
+
+          const { error: uploadError } = await supabase.storage
+            .from('workspace-snapshots')
+            .upload(filePath, file, { upsert: true })
+
+          if (!uploadError) {
+            await supabase
+              .from('workspaces')
+              .update({
+                canvas_snapshot_path: filePath,
+                canvas_snapshot_updated_at: new Date().toISOString(),
+              })
+              .eq('id', workspace.id)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to save before leaving:', err)
+      }
+    }
+
+    router.push('/')
   }
 
   return (
@@ -93,6 +126,7 @@ export default function WorkspaceClient({
           <button
             onClick={handleLeave}
             className="hover:bg-foreground/5 text-foreground/60 hover:text-foreground rounded-lg p-2 transition-colors"
+            aria-label="Return to dashboard"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -131,6 +165,7 @@ export default function WorkspaceClient({
               <button
                 onClick={() => setIsChatOpen(false)}
                 className="text-foreground/50 hover:bg-foreground/5 hover:text-foreground rounded-full p-1.5 transition-colors"
+                aria-label="Close tutor chat"
               >
                 <X className="h-4 w-4" />
               </button>

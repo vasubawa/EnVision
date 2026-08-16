@@ -18,6 +18,20 @@ alter table public.workspaces enable row level security;
 create policy "workspaces_crud_own" on public.workspaces
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Auto-update updated_at timestamp
+create or replace function public.update_workspaces_updated_at()
+returns trigger as $$
+begin
+  NEW.updated_at = now();
+  return NEW;
+end;
+$$ language plpgsql;
+
+create trigger workspaces_updated_at_trigger
+  before update on public.workspaces
+  for each row
+  execute function public.update_workspaces_updated_at();
+
 -- Messages Table
 create table public.messages (
   id uuid primary key default gen_random_uuid(),
@@ -37,14 +51,26 @@ create policy "messages_crud_via_workspace" on public.messages
   with check (exists (select 1 from public.workspaces w where w.id = workspace_id and w.user_id = auth.uid()));
 
 -- Enable Realtime for Messages
-begin;
-  -- Remove the supabase_realtime publication if it exists
-  drop publication if exists supabase_realtime;
+do $$
+begin
+  -- Create publication only if it does not exist
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+end $$;
 
-  -- Re-create the publication and add the messages table to it
-  create publication supabase_realtime;
-commit;
-alter publication supabase_realtime add table public.messages;
+-- Add messages table to the publication if not already present
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+    and schemaname = 'public'
+    and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+end $$;
 
 -- Storage Bucket for Snapshots
 insert into storage.buckets (id, name, public) values ('workspace-snapshots', 'workspace-snapshots', false) on conflict (id) do nothing;
