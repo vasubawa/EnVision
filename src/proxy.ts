@@ -38,15 +38,24 @@ export async function proxy(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname === '/login'
 
-  // Bypass auth for testing purposes if BYPASS_AUTH is true
-  if (process.env.BYPASS_AUTH === 'true') {
+  // Bypass auth for local testing only — never let this apply in a deployed environment.
+  if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
     return supabaseResponse
   }
 
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone()
     url.pathname = '/workspace'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+
+    // Carry over any cookies Supabase refreshed above — returning a bare
+    // NextResponse.redirect() here would otherwise drop them, which is exactly
+    // the kind of "randomly logged out" bug the comment above warns about.
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+
+    return redirectResponse
   }
 
   return supabaseResponse

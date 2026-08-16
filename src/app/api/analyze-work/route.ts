@@ -2,22 +2,11 @@ import { NextResponse, NextRequest } from 'next/server'
 import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
+import { type Feedback, isFeedbackShape } from '@/types/feedback'
 
-interface Feedback {
-  isCorrect: boolean
-  suggestion: string
-}
-
-function isFeedbackShape(obj: unknown): obj is Feedback {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof (obj as Feedback).suggestion === 'string' &&
-    typeof (obj as Feedback).isCorrect === 'boolean'
-  )
-}
-// Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined
-export const maxDuration = 60
+// Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined.
+// Note: Vercel Hobby plans hard-cap functions at 60s regardless of this value.
+export const maxDuration = 75
 
 export async function POST(req: NextRequest) {
   const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 10, windowMs: 60_000 })
@@ -213,11 +202,16 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(parsedResult)
   } catch (error: unknown) {
+    const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console
-    console.error('analyze-work error: An internal error occurred.')
+    console.error('analyze-work error:', isTimeout ? 'TIMEOUT' : 'An internal error occurred.')
     return NextResponse.json(
-      { error: 'An internal error occurred during analysis.' },
-      { status: 500 },
+      {
+        error: isTimeout
+          ? 'Analysis timed out. Please try again.'
+          : 'An internal error occurred during analysis.',
+      },
+      { status: isTimeout ? 504 : 500 },
     )
   }
 }

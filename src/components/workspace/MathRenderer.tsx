@@ -206,10 +206,18 @@ function wrapBareLatex(text: string): string {
   return result
 }
 
-export const MathRenderer: React.FC<MathRendererProps> = ({ content, className = '' }) => {
+// Memoized: TutorChat re-renders on every streamed token, and without this every
+// past message's KaTeX/Markdown would be re-parsed on each token instead of just
+// the one message that's actually changing — the more history on screen, the
+// worse the main-thread stall.
+export const MathRenderer: React.FC<MathRendererProps> = React.memo(function MathRenderer({
+  content,
+  className = '',
+}) {
   let preprocessed = wrapBareLatex(content)
 
   preprocessed = preprocessed.replace(/\\(i*nt|oint)([^\s\\])/g, '\\$1 $2')
+  preprocessed = preprocessed.replace(/[“”]/g, '"')
 
   return (
     <div className={`text-sm leading-relaxed ${className}`}>
@@ -218,4 +226,4 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       </ReactMarkdown>
     </div>
   )
-}
+})
