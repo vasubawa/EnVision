@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import WorkspaceClient from './WorkspaceClient'
 
 export default async function WorkspacePage({ params }: { params: Promise<{ id: string }> }) {
@@ -10,8 +10,12 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Anonymous users are allowed in workspaces — createWorkspace signs them in
+  // anonymously before creating the record. If there is truly no session
+  // (e.g. direct URL with an expired cookie), show a 404 rather than redirect
+  // to /login, which would break the anonymous flow.
   if (!user) {
-    redirect('/login')
+    notFound()
   }
 
   const [workspaceResponse, messagesResponse] = await Promise.all([

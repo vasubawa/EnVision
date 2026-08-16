@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 
 export async function createWorkspace(formData?: FormData) {
   const supabase = await createClient()
@@ -22,7 +21,7 @@ export async function createWorkspace(formData?: FormData) {
     if (error || !data.user) {
       // eslint-disable-next-line no-console
       console.error('Failed to sign in anonymously:', error)
-      redirect('/login')
+      throw new Error('Failed to sign in anonymously')
     }
     currentUser = data.user
   }
@@ -42,7 +41,7 @@ export async function createWorkspace(formData?: FormData) {
     throw new Error('Failed to create workspace')
   }
 
-  redirect(`/workspace/${workspace.id}`)
+  return workspace.id
 }
 
 export async function deleteWorkspace(id: string) {
