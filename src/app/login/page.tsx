@@ -36,19 +36,19 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold tracking-tight">Sign in to EnVision</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <p className="text-foreground/60 mt-2 text-sm">
             Enter your email to receive a magic link
           </p>
         </div>
 
         {sent ? (
-          <div className="bg-muted/50 border-border rounded-lg border p-6 text-center">
+          <div className="bg-card border-border rounded-lg border p-6 text-center">
             <h3 className="text-lg font-medium">Check your email</h3>
-            <p className="text-muted-foreground mt-2 text-sm">
+            <p className="text-foreground/60 mt-2 text-sm">
               We sent a magic link to <strong>{email}</strong>
             </p>
             <button
-              className="mt-6 rounded-md border border-gray-600 bg-transparent px-4 py-2 transition-colors hover:bg-gray-800"
+              className="border-border hover:bg-foreground/5 mt-6 rounded-md border bg-transparent px-4 py-2 transition-colors"
               onClick={() => setSent(false)}
             >
               Try another email
@@ -63,13 +63,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="border-border bg-card text-foreground focus:ring-primary-500 w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
                 disabled={loading}
               />
             </div>
             <button
               type="submit"
-              className="flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+              className="bg-primary-500 hover:bg-primary-600 flex w-full items-center justify-center rounded-md px-4 py-2 text-white transition-colors disabled:opacity-50"
               disabled={loading}
             >
               {loading ? (

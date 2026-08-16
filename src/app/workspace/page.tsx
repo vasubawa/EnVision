@@ -16,7 +16,7 @@ import { TutorChat } from '@/components/workspace/TutorChat'
 export default function WorkspacePage() {
   const file = useWorkspaceStore((state) => state.file)
   const router = useRouter()
-  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(true)
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -63,7 +63,7 @@ export default function WorkspacePage() {
 
         {/* Floating Chat Bubble */}
         <div
-          className={`absolute right-6 bottom-20 z-40 flex w-[380px] max-w-[calc(100vw-3rem)] flex-col shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:w-[400px] ${
+          className={`absolute right-6 bottom-20 z-40 flex w-120 max-w-[calc(100vw-3rem)] flex-col shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
             isChatOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-8 opacity-0'
           }`}
           style={{ height: 'calc(100vh - 180px)', maxHeight: '700px' }}
@@ -92,12 +92,10 @@ export default function WorkspacePage() {
         {/* Floating Action Button (FAB) for Chat */}
         <button
           onClick={() => setIsChatOpen(!isChatOpen)}
-          className={`bg-primary-500 hover:bg-primary-600 shadow-primary-500/25 absolute right-6 bottom-6 z-50 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 ${
-            isChatOpen ? 'scale-0 rotate-90 opacity-0' : 'scale-100 rotate-0 opacity-100'
-          }`}
-          title="Open AI Tutor"
+          className="bg-primary-500 hover:bg-primary-600 shadow-primary-500/25 absolute right-6 bottom-6 z-50 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
+          title={isChatOpen ? 'Close AI Tutor' : 'Open AI Tutor'}
         >
-          <MessageSquare className="h-6 w-6" />
+          {isChatOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
         </button>
       </main>
     </div>

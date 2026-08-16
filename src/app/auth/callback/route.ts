@@ -4,8 +4,21 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/workspace'
+  // if "next" is in param, use it as the redirect URL — but only if it's a
+  // same-site path, otherwise a crafted magic-link URL could redirect a
+  // freshly-authenticated user off-site (e.g. ?next=https://evil.com or //evil.com)
+  const rawNext = searchParams.get('next')
+  let next = '/workspace'
+  if (rawNext) {
+    try {
+      const parsedNext = new URL(rawNext, origin)
+      if (parsedNext.origin === origin) {
+        next = rawNext
+      }
+    } catch {
+      // ignore invalid URLs and fallback to /workspace
+    }
+  }
 
   if (code) {
     const supabase = await createClient()

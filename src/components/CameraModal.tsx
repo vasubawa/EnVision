@@ -17,20 +17,28 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
   const [isCapturing, setIsCapturing] = useState(false)
 
   useEffect(() => {
-    let localStream: MediaStream | null = null
+    let cancelled = false
+    let activeStream: MediaStream | null = null
 
     if (isOpen) {
       setTimeout(() => setError(null), 0)
       navigator.mediaDevices
         .getUserMedia({ video: { facingMode: 'environment' } })
         .then((mediaStream) => {
-          localStream = mediaStream
+          // The modal may have already closed while getUserMedia was pending —
+          // stop the just-granted stream immediately instead of leaking it.
+          if (cancelled) {
+            mediaStream.getTracks().forEach((track) => track.stop())
+            return
+          }
+          activeStream = mediaStream
           setStream(mediaStream)
           if (videoRef.current) {
             videoRef.current.srcObject = mediaStream
           }
         })
         .catch((err) => {
+          if (cancelled) return
           // eslint-disable-next-line no-console
           console.debug('getUserMedia error:', err)
           const msg = 'Could not access camera. Please check permissions.'
@@ -40,8 +48,9 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
     }
 
     return () => {
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop())
+      cancelled = true
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop())
       }
       setStream(null)
     }
