@@ -55,13 +55,13 @@ export default function SidebarClient({
           className={`flex h-full w-64 flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'}`}
         >
           {/* Header */}
-          <div className="flex h-14 shrink-0 items-center justify-between px-4 pt-2">
+          <div className="border-border/50 flex h-14 shrink-0 items-center justify-between border-b px-4">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 transition-transform hover:opacity-80"
+              className="flex items-center gap-2 transition-transform hover:scale-105"
             >
-              <EnVisionMark className="text-foreground h-5 w-5" />
-              <span className="font-serif text-lg tracking-tight">EnVision</span>
+              <EnVisionMark className="text-primary-500 h-6 w-6" />
+              <span className="font-serif font-medium tracking-tight">EnVision</span>
             </Link>
             <button
               onClick={() => setIsOpen(false)}
@@ -72,18 +72,18 @@ export default function SidebarClient({
           </div>
 
           {/* New Workspace Button */}
-          <div className="shrink-0 px-3 py-4">
+          <div className="shrink-0 p-3">
             <form action={handleSubmit}>
-              <button className="text-foreground border-border hover:bg-foreground/5 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors">
-                <span className="font-medium">New chat</span>
+              <button className="border-border/50 bg-background hover:bg-foreground/5 mb-2 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm transition-colors">
+                <span className="font-medium">New session</span>
                 <Plus className="h-4 w-4" />
               </button>
             </form>
           </div>
 
           {/* Workspace List */}
-          <div className="flex-1 overflow-y-auto px-2">
-            <div className="text-foreground/40 mb-2 px-2 text-xs font-medium">Recent</div>
+          <div className="flex-1 overflow-y-auto px-2 py-2">
+            <div className="text-foreground/50 mb-2 px-2 text-xs font-semibold">Recent</div>
             <div className="flex flex-col gap-0.5">
               {workspaces.map((ws) => (
                 <Link
@@ -103,7 +103,7 @@ export default function SidebarClient({
           </div>
 
           {/* Footer */}
-          <div className="shrink-0 p-4">
+          <div className="border-border/50 shrink-0 border-t p-4">
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <AuthMenu />
@@ -120,9 +120,9 @@ export default function SidebarClient({
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
-            className="text-foreground/50 hover:bg-foreground/5 hover:text-foreground absolute top-4 left-4 z-40 rounded-md p-2 transition-colors"
+            className="text-foreground/50 hover:bg-foreground/5 hover:text-foreground border-border/50 bg-background/50 absolute top-4 left-4 z-40 rounded-md border p-2 shadow-sm backdrop-blur-sm"
           >
-            <PanelLeft className="h-5 w-5" />
+            <PanelLeft className="h-4 w-4" />
           </button>
         )}
 
