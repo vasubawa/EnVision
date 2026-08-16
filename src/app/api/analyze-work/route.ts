@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 
 interface Feedback {
   isCorrect: boolean
@@ -19,11 +20,19 @@ function isFeedbackShape(obj: unknown): obj is Feedback {
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 10, windowMs: 60_000 })
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } },
+    )
+  }
+
   try {
     const { canvasBase64 } = await req.json()
 
-    if (!canvasBase64) {
-      return NextResponse.json({ error: 'Missing canvas image' }, { status: 400 })
+    if (!isValidCanvasImage(canvasBase64)) {
+      return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
     }
 
     // Step 1: Vision Transcription (45s timeout — reasoning model needs room to think)
