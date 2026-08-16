@@ -34,3 +34,13 @@ jobs:
 
       - name: Run checks
         run: pnpm check
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          GROQ_API_KEY: placeholder
+          OPENROUTER_API_KEY: placeholder
+          NVIDIA_NIM_API_KEY: placeholder
