@@ -32,7 +32,7 @@ export default async function DashboardPage() {
           tutoring.
         </p>
 
-        <NewSessionForm isAuthenticated={!!user} />
+        <NewSessionForm _isAuthenticated={!!user} />
       </main>
     </div>
   )

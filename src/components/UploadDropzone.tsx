@@ -4,9 +4,10 @@ import { useState, useCallback } from 'react'
 import { ArrowRight, FileText, UploadCloud, X, Camera } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { toast } from 'sonner'
-import { CameraModal } from './CameraModal'
 import { useRouter } from 'next/navigation'
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
+import { createWorkspace } from '@/app/(main)/dashboard/actions'
+import { CameraModal } from './CameraModal'
 
 function formatFileSize(bytes: number) {
   if (bytes === 0) return '0 Bytes'
@@ -40,19 +41,30 @@ export function UploadDropzone() {
 
   const router = useRouter()
   const setWorkspaceFile = useWorkspaceStore((state) => state.setFile)
+  const setPendingFileForChat = useWorkspaceStore((state) => state.setPendingFileForChat)
 
-  const handleStartLearning = () => {
-    if (!file) return
+  const handleStartLearning = async (useFile: boolean = true) => {
+    if (useFile && !file) return
     setIsUploading(true)
-    setTimeout(() => {
-      setWorkspaceFile(file)
-      toast.success('Extraction complete!', {
-        id: TOAST_IDS.EXTRACT,
-        description: 'Opening your workspace...',
-      })
-      router.push('/workspace')
+
+    try {
+      if (useFile && file) {
+        setWorkspaceFile(file)
+        setPendingFileForChat(file)
+        toast.success('Extraction complete!', {
+          id: TOAST_IDS.EXTRACT,
+          description: 'Opening your workspace...',
+        })
+      } else {
+        setWorkspaceFile(null)
+      }
+
+      const id = await createWorkspace()
+      router.push(`/workspace/${id}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create workspace')
       setIsUploading(false)
-    }, 1500)
+    }
   }
 
   return (
@@ -104,12 +116,12 @@ export function UploadDropzone() {
               </button>
               <button
                 type="button"
+                disabled={isUploading}
                 onClick={(e) => {
                   e.stopPropagation()
-                  setWorkspaceFile(null)
-                  router.push('/workspace')
+                  handleStartLearning(false)
                 }}
-                className="group border-border hover:bg-foreground/5 text-foreground/60 hover:text-foreground flex w-full items-center justify-center gap-2 rounded-xl border bg-transparent px-5 py-2.5 text-sm font-medium transition-all duration-300 sm:w-auto"
+                className="group border-border hover:bg-foreground/5 text-foreground/60 hover:text-foreground flex w-full items-center justify-center gap-2 rounded-xl border bg-transparent px-5 py-2.5 text-sm font-medium transition-all duration-300 disabled:opacity-50 sm:w-auto"
               >
                 Blank Canvas
               </button>
@@ -150,7 +162,7 @@ export function UploadDropzone() {
             </p>
             <button
               id="start-learning-btn"
-              onClick={handleStartLearning}
+              onClick={() => handleStartLearning(true)}
               disabled={isUploading}
               className="bg-primary-500 hover:bg-primary-600 flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
             >

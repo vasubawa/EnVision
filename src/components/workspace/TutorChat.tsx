@@ -45,11 +45,16 @@ export function TutorChat({
     setIsAutoCheckEnabled,
     autoCheckDelay,
     setAutoCheckDelay,
+    pendingFileForChat,
+    setPendingFileForChat,
+    queuedImageForChat,
+    setQueuedImageForChat,
   } = useWorkspaceStore()
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [input, setInput] = useState('')
   const lastAnalyzedRef = useRef<number>(0)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hasSentPendingFile = useRef(false)
 
   // Initialize feedback messages from DB
   useEffect(() => {
@@ -89,6 +94,55 @@ export function TutorChat({
     onError: (err: Error) => toast.error(err.message),
   })
   const isLoading = status === 'submitted' || status === 'streaming'
+
+  // Send pending file (camera capture / uploaded worksheet) as opening message
+  useEffect(() => {
+    if (!pendingFileForChat || hasSentPendingFile.current) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      hasSentPendingFile.current = true
+      setPendingFileForChat(null)
+      sendMessage(
+        {
+          text: "I've shared an image of my worksheet. Please take a look and help me understand the problems on it.",
+          metadata: { createdAt: Date.now() },
+        },
+        { body: { canvasBase64: dataUrl } },
+      )
+    }
+
+    if (pendingFileForChat.type === 'application/pdf') {
+      // For PDFs we cannot cheaply render in-browser here;
+      // send a text-only note so the tutor knows one was uploaded.
+      hasSentPendingFile.current = true
+      setPendingFileForChat(null)
+      sendMessage(
+        {
+          text: `I've uploaded a PDF worksheet called "${pendingFileForChat.name}". Once it loads on my whiteboard, please help me with the problems on it.`,
+          metadata: { createdAt: Date.now() },
+        },
+        { body: {} },
+      )
+    } else {
+      reader.readAsDataURL(pendingFileForChat)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Send images uploaded via the in-workspace toolbar to the AI chat
+  useEffect(() => {
+    if (!queuedImageForChat) return
+    setQueuedImageForChat(null)
+    sendMessage(
+      {
+        text: 'I just added an image to the workspace. Please take a look and help me understand any problems shown in it.',
+        metadata: { createdAt: Date.now() },
+      },
+      { body: { canvasBase64: queuedImageForChat } },
+    )
+  }, [queuedImageForChat, setQueuedImageForChat, sendMessage])
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -369,7 +423,7 @@ export function TutorChat({
             onChange={(e) => setInput(e.target.value)}
             disabled={isAnalyzing || isLoading}
             placeholder="Ask a question..."
-            className="bg-foreground/5 text-foreground placeholder:text-foreground/40 focus:bg-foreground/10 h-11 w-full rounded-xl px-4 pr-12 text-sm transition-colors focus:outline-none disabled:opacity-50"
+            className="bg-foreground/5 text-foreground placeholder:text-foreground/40 focus:bg-foreground/10 h-11 w-full rounded-xl px-4 pr-12 text-base transition-colors focus:outline-none disabled:opacity-50 sm:text-sm"
           />
           <button
             type="submit"
