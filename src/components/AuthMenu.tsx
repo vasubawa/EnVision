@@ -29,7 +29,7 @@ export function AuthMenu() {
 
   return (
     <div className="flex items-center gap-4 font-sans text-sm">
-      {user ? (
+      {user && !user.is_anonymous ? (
         <>
           <span className="text-foreground/80 hidden sm:inline">{user.email}</span>
           <form action="/auth/signout" method="POST">

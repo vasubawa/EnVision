@@ -3,27 +3,36 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-export async function createWorkspace(formData?: FormData) {
+export async function createWorkspace(_formData?: FormData) {
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
+  let currentUser = user
+
+  if (!currentUser) {
+    const { data, error } = await supabase.auth.signInAnonymously()
+    if (error || !data.user) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to sign in anonymously:', error)
+      redirect('/login')
+    }
+    currentUser = data.user
   }
 
   const { data: workspace, error } = await supabase
     .from('workspaces')
     .insert({
-      user_id: user.id,
+      user_id: currentUser.id,
       title: 'Untitled workspace',
     })
     .select('id')
     .single()
 
   if (error || !workspace) {
+    // eslint-disable-next-line no-console
     console.error('Failed to create workspace:', error)
     throw new Error('Failed to create workspace')
   }
@@ -45,6 +54,7 @@ export async function deleteWorkspace(id: string) {
   const { error } = await supabase.from('workspaces').delete().eq('id', id).eq('user_id', user.id)
 
   if (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to delete workspace:', error)
     throw new Error('Failed to delete workspace')
   }
