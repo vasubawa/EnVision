@@ -5,10 +5,12 @@ import { createWorkspace } from './actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useCaptcha } from '@/components/CaptchaModal'
 
 export function NewSessionForm({ _isAuthenticated }: { _isAuthenticated?: boolean }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const { requireCaptcha } = useCaptcha()
 
   const handleClick = async () => {
     if (isLoading) return
@@ -16,7 +18,11 @@ export function NewSessionForm({ _isAuthenticated }: { _isAuthenticated?: boolea
     try {
       // For anonymous users: create the session immediately, verification
       // happens inside the workspace via the captcha overlay.
-      const id = await createWorkspace()
+      const captchaToken = await requireCaptcha()
+      const formData = new FormData()
+      if (captchaToken) formData.append('captchaToken', captchaToken)
+
+      const id = await createWorkspace(formData)
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create session')
