@@ -13,7 +13,8 @@ if (typeof window !== 'undefined') {
 }
 
 export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?: string | null }) {
-  const { file, setGetCanvasImage, setGetCanvasJson, setLastCanvasUpdate } = useWorkspaceStore()
+  const { file, setGetCanvasImage, setGetCanvasJson, setLastCanvasUpdate, setQueuedImageForChat } =
+    useWorkspaceStore()
   const { resolvedTheme } = useTheme()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -105,6 +106,8 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
               canvas.add(img)
               // Don't send to back if it's manually added via toolbar so it doesn't hide behind existing things
               saveHistory()
+              // Also queue for TutorChat so the AI can see & comment on it
+              setQueuedImageForChat(dataUrl)
             })
             // eslint-disable-next-line no-console
             .catch(console.error)
@@ -157,7 +160,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         reader.readAsArrayBuffer(fileToLoad)
       }
     },
-    [saveHistory],
+    [saveHistory, setQueuedImageForChat],
   )
 
   useEffect(() => {
@@ -290,14 +293,14 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       const evt = opt.e as MouseEvent | TouchEvent
       const currentMode = getMode()
 
+      // TouchEvent is not defined in Firefox / desktop environments — guard every instanceof check
+      const isTouchEvent = (e: Event): e is TouchEvent =>
+        typeof TouchEvent !== 'undefined' && e instanceof TouchEvent
+
       const getClientX = (e: MouseEvent | TouchEvent) =>
-        e instanceof TouchEvent && e.touches.length > 0
-          ? e.touches[0].clientX
-          : (e as MouseEvent).clientX
+        isTouchEvent(e) && e.touches.length > 0 ? e.touches[0].clientX : (e as MouseEvent).clientX
       const getClientY = (e: MouseEvent | TouchEvent) =>
-        e instanceof TouchEvent && e.touches.length > 0
-          ? e.touches[0].clientY
-          : (e as MouseEvent).clientY
+        isTouchEvent(e) && e.touches.length > 0 ? e.touches[0].clientY : (e as MouseEvent).clientY
 
       // Object Eraser Logic
       if (currentMode === 'erase') {
@@ -331,10 +334,10 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
 
       const isMiddleClick = evt instanceof MouseEvent && evt.button === 1
       const isAltKey = evt instanceof MouseEvent && evt.altKey
-      const isMultiTouch = evt instanceof TouchEvent && evt.touches.length > 1
+      const isMultiTouch = isTouchEvent(evt) && evt.touches.length > 1
 
       // Multi-touch Pan/Zoom
-      if (isMultiTouch && evt instanceof TouchEvent) {
+      if (isMultiTouch && isTouchEvent(evt)) {
         isPanning = true
         canvas.selection = false
         canvas.isDrawingMode = false // Temporarily disable drawing
@@ -403,20 +406,18 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
 
     canvas.on('mouse:move', function (opt) {
       const evt = opt.e as MouseEvent | TouchEvent
+      const isTouchEvent = (e: Event): e is TouchEvent =>
+        typeof TouchEvent !== 'undefined' && e instanceof TouchEvent
       const getClientX = (e: MouseEvent | TouchEvent) =>
-        e instanceof TouchEvent && e.touches.length > 0
-          ? e.touches[0].clientX
-          : (e as MouseEvent).clientX
+        isTouchEvent(e) && e.touches.length > 0 ? e.touches[0].clientX : (e as MouseEvent).clientX
       const getClientY = (e: MouseEvent | TouchEvent) =>
-        e instanceof TouchEvent && e.touches.length > 0
-          ? e.touches[0].clientY
-          : (e as MouseEvent).clientY
+        isTouchEvent(e) && e.touches.length > 0 ? e.touches[0].clientY : (e as MouseEvent).clientY
 
       if (isPanning) {
         const vpt = canvas.viewportTransform
         if (vpt) {
           // Multi-touch Zoom/Pan
-          if (evt instanceof TouchEvent && evt.touches.length > 1) {
+          if (isTouchEvent(evt) && evt.touches.length > 1) {
             evt.preventDefault() // prevent scroll
             const t1 = evt.touches[0]
             const t2 = evt.touches[1]
