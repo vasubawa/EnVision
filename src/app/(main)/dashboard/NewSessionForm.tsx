@@ -8,6 +8,8 @@ import { useState } from 'react'
 export function NewSessionForm({ isAuthenticated }: { isAuthenticated: boolean }) {
   const [captchaToken, setCaptchaToken] = useState<string>('')
 
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+
   return (
     <form action={createWorkspace} className="flex flex-col items-center">
       <input type="hidden" name="captchaToken" value={captchaToken} />
@@ -19,12 +21,9 @@ export function NewSessionForm({ isAuthenticated }: { isAuthenticated: boolean }
         <span className="font-medium">New Session</span>
       </button>
 
-      {!isAuthenticated && (
+      {!isAuthenticated && siteKey && (
         <div className="mt-2 flex justify-center">
-          <Turnstile
-            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-            onSuccess={(token) => setCaptchaToken(token)}
-          />
+          <Turnstile siteKey={siteKey} onSuccess={(token) => setCaptchaToken(token)} />
         </div>
       )}
     </form>

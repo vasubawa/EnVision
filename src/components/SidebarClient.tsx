@@ -28,6 +28,7 @@ export default function SidebarClient({
   const [isOpen, setIsOpen] = useState(true)
   const [captchaToken, setCaptchaToken] = useState<string>('')
   const pathname = usePathname()
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 
   return (
     <div className="bg-background flex h-screen overflow-hidden">
@@ -71,12 +72,9 @@ export default function SidebarClient({
                 <span className="font-medium">New session</span>
                 <Plus className="h-4 w-4" />
               </button>
-              {!isAuthenticated && (
+              {!isAuthenticated && siteKey && (
                 <div className="mt-2 origin-top-left scale-90">
-                  <Turnstile
-                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                    onSuccess={(token) => setCaptchaToken(token)}
-                  />
+                  <Turnstile siteKey={siteKey} onSuccess={(token) => setCaptchaToken(token)} />
                 </div>
               )}
             </form>
