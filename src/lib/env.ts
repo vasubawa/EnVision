@@ -1,5 +1,4 @@
-export function requireEnv(name: string): string {
-  const value = process.env[name]
+export function requireEnv(value: string | undefined, name: string): string {
   if (!value) throw new Error(`Missing required environment variable: ${name}`)
   return value
 }
