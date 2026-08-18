@@ -5,18 +5,26 @@ import { createClient } from '@/lib/supabase/client'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, X, Settings, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useCaptcha } from '@/components/CaptchaModal'
 
-export function AuthMenu() {
+export function AuthMenu({
+  mode = 'landing',
+  themeToggle,
+}: {
+  mode?: 'landing' | 'sidebar'
+  themeToggle?: React.ReactNode
+}) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [supabase] = useState(() => createClient())
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const emailInputRef = useRef<HTMLInputElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -50,18 +58,34 @@ export function AuthMenu() {
         return
       }
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          captchaToken: token,
-        },
-      })
-      if (error) {
-        toast.error(error.message)
+      let authError = null
+
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            captchaToken: token,
+          },
+        })
+        authError = error
       } else {
-        toast.success('Check your email for the login link.')
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: {
+            captchaToken: token,
+          },
+        })
+        authError = error
+      }
+
+      if (authError) {
+        toast.error(authError.message)
+      } else {
+        toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
         setIsModalOpen(false)
+        setPassword('')
       }
     } finally {
       setAuthLoading(false)
@@ -72,25 +96,52 @@ export function AuthMenu() {
 
   return (
     <>
-      <div className="flex items-center gap-4 font-sans text-sm">
+      <div className="flex w-full items-center gap-4 font-sans text-sm">
         {user && !user.is_anonymous ? (
-          <>
-            <span className="text-foreground/80 hidden sm:inline">{user.email}</span>
+          mode === 'sidebar' ? (
+            <div className="flex w-full flex-col gap-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="bg-primary-500/10 text-primary-500 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold">
+                  {user.email?.[0].toUpperCase()}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span
+                    className="text-foreground/80 truncate text-sm font-medium"
+                    title={user.email}
+                  >
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Link
+                  href="/settings"
+                  className="hover:bg-foreground/5 text-foreground/60 hover:text-foreground flex flex-1 items-center justify-center rounded-md p-2 transition-colors"
+                  aria-label="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Link>
+                <div className="flex flex-1 items-center justify-center">{themeToggle}</div>
+                <form action="/auth/signout" method="POST" className="flex flex-1">
+                  <button
+                    type="submit"
+                    className="text-foreground/60 flex w-full items-center justify-center rounded-md p-2 transition-colors hover:bg-red-500/10 hover:text-red-500"
+                    aria-label="Sign Out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
             <Link
               href="/workspaces"
-              className="text-foreground hover:bg-foreground/5 rounded-xl px-4 py-1.5 font-medium transition-colors"
+              className="bg-foreground text-background hover:bg-foreground/90 rounded-xl px-4 py-1.5 font-medium transition-colors"
             >
               My Workspaces
             </Link>
-            <form action="/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="text-foreground/60 hover:text-foreground font-medium transition-colors"
-              >
-                Sign Out
-              </button>
-            </form>
-          </>
+          )
         ) : (
           <button
             onClick={() => {
@@ -128,10 +179,12 @@ export function AuthMenu() {
 
               <div className="mb-6 text-center">
                 <h2 id="auth-modal-title" className="text-xl font-bold tracking-tight">
-                  Sign in to EnVision
+                  {isSignUp ? 'Create an account' : 'Sign in to EnVision'}
                 </h2>
                 <p className="text-foreground/60 mt-1 text-sm">
-                  Enter your email to receive a magic login link
+                  {isSignUp
+                    ? 'Enter your details to sign up'
+                    : 'Enter your email and password to sign in'}
                 </p>
               </div>
 
@@ -152,6 +205,22 @@ export function AuthMenu() {
                     disabled={authLoading}
                   />
                 </div>
+                <div>
+                  <label htmlFor="auth-password" className="sr-only">
+                    Password
+                  </label>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="border-border bg-card text-foreground focus:ring-primary-500 w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
+                    disabled={authLoading}
+                  />
+                </div>
 
                 <button
                   type="submit"
@@ -163,10 +232,24 @@ export function AuthMenu() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Please wait
                     </>
+                  ) : isSignUp ? (
+                    'Sign Up'
                   ) : (
-                    'Send Magic Link'
+                    'Sign In'
                   )}
                 </button>
+
+                <div className="mt-4 text-center text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-primary-500 transition-colors hover:underline"
+                  >
+                    {isSignUp
+                      ? 'Already have an account? Sign in'
+                      : "Don't have an account? Sign up"}
+                  </button>
+                </div>
               </form>
             </div>
           </div>,
