@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, X, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useCaptcha } from '@/components/CaptchaModal'
@@ -94,6 +94,13 @@ export function AuthMenu() {
         {user && !user.is_anonymous ? (
           <>
             <span className="text-foreground/80 hidden sm:inline">{user.email}</span>
+            <Link
+              href="/settings"
+              className="text-foreground hover:bg-foreground/5 rounded-full p-1.5 transition-colors"
+              aria-label="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
             <Link
               href="/workspaces"
               className="text-foreground hover:bg-foreground/5 rounded-xl px-4 py-1.5 font-medium transition-colors"
