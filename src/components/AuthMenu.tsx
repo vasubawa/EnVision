@@ -94,9 +94,16 @@ export function AuthMenu() {
             router.refresh()
           }
         } else {
+          let token = ''
+          try {
+            token = await requireCaptcha()
+          } catch (_err) {
+            return
+          }
           const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
+            options: { captchaToken: token },
           })
           if (error) {
             toast.error(error.message)
@@ -156,6 +163,7 @@ export function AuthMenu() {
             <div
               role="dialog"
               aria-modal="true"
+              aria-labelledby="auth-modal-title"
               className="bg-card border-border/50 relative w-full max-w-sm rounded-2xl border p-6 shadow-2xl"
             >
               <button
@@ -170,7 +178,7 @@ export function AuthMenu() {
               </button>
 
               <div className="mb-6 text-center">
-                <h2 className="text-xl font-bold tracking-tight">
+                <h2 id="auth-modal-title" className="text-xl font-bold tracking-tight">
                   {isSignUp ? 'Create an account' : 'Sign in to EnVision'}
                 </h2>
                 <p className="text-foreground/60 mt-1 text-sm">
