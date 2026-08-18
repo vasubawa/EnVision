@@ -21,7 +21,7 @@ export async function Sidebar({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarClient workspaces={workspaces} _isAuthenticated={!!user}>
+    <SidebarClient workspaces={workspaces} isAnonymous={!user || (user.is_anonymous ?? false)}>
       {children}
     </SidebarClient>
   )

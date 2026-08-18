@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
         })
 
         if (insertError) {
+          console.error('Failed to save user message:', insertError)
           return new Response(JSON.stringify({ error: 'Failed to save message' }), { status: 500 })
         }
       }
