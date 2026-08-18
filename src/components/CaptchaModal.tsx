@@ -19,8 +19,7 @@ export function CaptchaProvider({ children }: { children: ReactNode }) {
   const requireCaptcha = useCallback(() => {
     return new Promise<string>((resolve, reject) => {
       if (!siteKey) {
-        // If no sitekey is configured, immediately resolve with empty string so the app doesn't break
-        resolve('')
+        reject(new Error('Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY'))
         return
       }
       setResolvePromise(() => resolve)

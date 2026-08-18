@@ -20,7 +20,7 @@ An AI-tutored whiteboard for physics, chemistry, and calculus. Upload a problem 
 
 ## Getting started
 
-1. Copy `.env.example` to `.env.local` and fill in the Supabase and model provider keys. `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is required for captcha inside the workspace. `CRON_SECRET` is a required environment variable in production, and keep-alive requests must use its value as the `Bearer` token.
+1. Copy `.env.example` to `.env.local` and fill in the Supabase and model provider keys. `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are required for captcha inside the workspace. **Note:** You must also enable "Enable Captcha protection" in your Supabase Auth configuration (using Cloudflare Turnstile) and provide the Turnstile secret key there to secure the authentication endpoints. `CRON_SECRET` is a required environment variable in production, and keep-alive requests must use its value as the `Bearer` token.
 2. Install dependencies and run the dev server:
 
    ```bash

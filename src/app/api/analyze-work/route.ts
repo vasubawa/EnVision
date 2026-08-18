@@ -3,6 +3,7 @@ import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/li
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { type Feedback, isFeedbackShape } from '@/types/feedback'
+import { verifyTurnstileToken } from '@/lib/turnstile'
 
 // Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined.
 export const maxDuration = 90
@@ -17,7 +18,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { canvasBase64, workspaceId } = await req.json()
+    const { canvasBase64, workspaceId, captchaToken } = await req.json()
+
+    if (!captchaToken || !(await verifyTurnstileToken(captchaToken))) {
+      return NextResponse.json({ error: 'Invalid or missing captcha token' }, { status: 403 })
+    }
 
     if (!isValidCanvasImage(canvasBase64)) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
