@@ -95,7 +95,10 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="auth-password" className="sr-only">
+            <label
+              htmlFor="auth-password"
+              className="text-foreground/80 mb-1 block text-sm font-medium"
+            >
               Password
             </label>
             <input
