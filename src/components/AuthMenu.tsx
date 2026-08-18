@@ -17,6 +17,8 @@ export function AuthMenu() {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const emailInputRef = useRef<HTMLInputElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -50,18 +52,34 @@ export function AuthMenu() {
         return
       }
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          captchaToken: token,
-        },
-      })
-      if (error) {
-        toast.error(error.message)
+      let authError = null
+
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            captchaToken: token,
+          },
+        })
+        authError = error
       } else {
-        toast.success('Check your email for the login link.')
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: {
+            captchaToken: token,
+          },
+        })
+        authError = error
+      }
+
+      if (authError) {
+        toast.error(authError.message)
+      } else {
+        toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
         setIsModalOpen(false)
+        setPassword('')
       }
     } finally {
       setAuthLoading(false)
@@ -128,10 +146,10 @@ export function AuthMenu() {
 
               <div className="mb-6 text-center">
                 <h2 id="auth-modal-title" className="text-xl font-bold tracking-tight">
-                  Sign in to EnVision
+                  {isSignUp ? 'Create an account' : 'Sign in to EnVision'}
                 </h2>
                 <p className="text-foreground/60 mt-1 text-sm">
-                  Enter your email to receive a magic login link
+                  {isSignUp ? 'Enter your details to sign up' : 'Enter your email and password to sign in'}
                 </p>
               </div>
 
@@ -152,6 +170,22 @@ export function AuthMenu() {
                     disabled={authLoading}
                   />
                 </div>
+                <div>
+                  <label htmlFor="auth-password" className="sr-only">
+                    Password
+                  </label>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="border-border bg-card text-foreground focus:ring-primary-500 w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
+                    disabled={authLoading}
+                  />
+                </div>
 
                 <button
                   type="submit"
@@ -164,9 +198,19 @@ export function AuthMenu() {
                       Please wait
                     </>
                   ) : (
-                    'Send Magic Link'
+                    isSignUp ? 'Sign Up' : 'Sign In'
                   )}
                 </button>
+                
+                <div className="text-center mt-4 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-primary-500 hover:underline transition-colors"
+                  >
+                    {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                  </button>
+                </div>
               </form>
             </div>
           </div>,
