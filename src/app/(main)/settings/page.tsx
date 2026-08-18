@@ -9,10 +9,10 @@ import type { User } from '@supabase/supabase-js'
 export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null)
   const [loadingUser, setLoadingUser] = useState(true)
-  
+
   const [newPassword, setNewPassword] = useState('')
   const [updatingPassword, setUpdatingPassword] = useState(false)
-  
+
   const [newEmail, setNewEmail] = useState('')
   const [updatingEmail, setUpdatingEmail] = useState(false)
 
@@ -51,7 +51,7 @@ export default function SettingsPage() {
       toast.info('This is already your email address.')
       return
     }
-    
+
     setUpdatingEmail(true)
 
     const { error } = await supabase.auth.updateUser({
@@ -69,7 +69,7 @@ export default function SettingsPage() {
   if (loadingUser) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        <Loader2 className="text-primary-500 h-8 w-8 animate-spin" />
       </div>
     )
   }
@@ -78,24 +78,25 @@ export default function SettingsPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-foreground/60 mt-4 text-center max-w-md">
-          You are currently signed in anonymously. Please sign up or log in to a permanent account to change your settings.
+        <p className="text-foreground/60 mt-4 max-w-md text-center">
+          You are currently signed in anonymously. Please sign up or log in to a permanent account
+          to change your settings.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto max-w-2xl py-8 px-4">
-      <h1 className="text-3xl font-bold tracking-tight mb-8">Account Settings</h1>
+    <div className="container mx-auto max-w-2xl px-4 py-8">
+      <h1 className="mb-8 text-3xl font-bold tracking-tight">Account Settings</h1>
 
       <div className="space-y-8">
         {/* Email Settings */}
         <section className="bg-card border-border rounded-xl border p-6">
-          <h2 className="text-xl font-semibold mb-4">Email Address</h2>
+          <h2 className="mb-4 text-xl font-semibold">Email Address</h2>
           <form onSubmit={handleUpdateEmail} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-foreground/80 mb-1">
+              <label htmlFor="email" className="text-foreground/80 mb-1 block text-sm font-medium">
                 New Email
               </label>
               <input
@@ -127,10 +128,13 @@ export default function SettingsPage() {
 
         {/* Password Settings */}
         <section className="bg-card border-border rounded-xl border p-6">
-          <h2 className="text-xl font-semibold mb-4">Change Password</h2>
+          <h2 className="mb-4 text-xl font-semibold">Change Password</h2>
           <form onSubmit={handleUpdatePassword} className="space-y-4">
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground/80 mb-1">
+              <label
+                htmlFor="password"
+                className="text-foreground/80 mb-1 block text-sm font-medium"
+              >
                 New Password
               </label>
               <input

@@ -156,7 +156,9 @@ export function AuthMenu() {
                   {isSignUp ? 'Create an account' : 'Sign in to EnVision'}
                 </h2>
                 <p className="text-foreground/60 mt-1 text-sm">
-                  {isSignUp ? 'Enter your details to sign up' : 'Enter your email and password to sign in'}
+                  {isSignUp
+                    ? 'Enter your details to sign up'
+                    : 'Enter your email and password to sign in'}
                 </p>
               </div>
 
@@ -204,18 +206,22 @@ export function AuthMenu() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Please wait
                     </>
+                  ) : isSignUp ? (
+                    'Sign Up'
                   ) : (
-                    isSignUp ? 'Sign Up' : 'Sign In'
+                    'Sign In'
                   )}
                 </button>
-                
-                <div className="text-center mt-4 text-sm">
+
+                <div className="mt-4 text-center text-sm">
                   <button
                     type="button"
                     onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-primary-500 hover:underline transition-colors"
+                    className="text-primary-500 transition-colors hover:underline"
                   >
-                    {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                    {isSignUp
+                      ? 'Already have an account? Sign in'
+                      : "Don't have an account? Sign up"}
                   </button>
                 </div>
               </form>
