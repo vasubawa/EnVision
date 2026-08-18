@@ -6,10 +6,6 @@ import { verifyTurnstileToken } from '@/lib/turnstile'
 export async function createWorkspace(
   captchaToken?: string,
 ): Promise<{ data?: string; error?: string }> {
-  if (!captchaToken) {
-    return { error: 'Missing captcha token' }
-  }
-
   const supabase = await createClient()
 
   const {
@@ -19,6 +15,9 @@ export async function createWorkspace(
   let currentUser = user
 
   if (!currentUser) {
+    if (!captchaToken) {
+      return { error: 'Missing captcha token' }
+    }
     const { data, error } = await supabase.auth.signInAnonymously({ options: { captchaToken } })
     if (error || !data.user) {
       // eslint-disable-next-line no-console
@@ -26,12 +25,6 @@ export async function createWorkspace(
       return { error: 'Failed to sign in anonymously: ' + (error?.message || 'Unknown error') }
     }
     currentUser = data.user
-  } else {
-    // Only verify manually if we're not consuming the token in signInAnonymously
-    const isValid = await verifyTurnstileToken(captchaToken)
-    if (!isValid) {
-      return { error: 'Invalid captcha token' }
-    }
   }
 
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -81,34 +74,17 @@ export async function deleteWorkspace(id: string) {
   }
 }
 
-export async function migrateAndSignIn(email: string, password: string, captchaToken: string) {
-  const supabase = await createClient()
-  const {
-    data: { user: anonUser },
-  } = await supabase.auth.getUser()
+export async function migrateAnonymousWorkspaces(oldUserId: string, newUserId: string) {
+  const admin = createAdminClient()
+  const { error: updateError } = await admin
+    .from('workspaces')
+    .update({ user_id: newUserId })
+    .eq('user_id', oldUserId)
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-    options: { captchaToken },
-  })
-
-  if (error || !data.user) {
-    return { error: error?.message || 'Failed to sign in' }
-  }
-
-  // If there was an anonymous user, migrate their workspaces to the new user
-  if (anonUser && anonUser.is_anonymous) {
-    const admin = createAdminClient()
-    const { error: updateError } = await admin
-      .from('workspaces')
-      .update({ user_id: data.user.id })
-      .eq('user_id', anonUser.id)
-    if (updateError) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to migrate workspaces:', updateError)
-      return { error: 'Failed to migrate workspaces: ' + updateError.message }
-    }
+  if (updateError) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to migrate workspaces:', updateError)
+    return { error: 'Failed to migrate workspaces: ' + updateError.message }
   }
 
   return { success: true }

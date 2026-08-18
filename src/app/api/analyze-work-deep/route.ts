@@ -3,7 +3,6 @@ import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/li
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { type Feedback, isFeedbackShape } from '@/types/feedback'
-import { verifyTurnstileToken } from '@/lib/turnstile'
 
 export const maxDuration = 60
 
@@ -17,11 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { canvasBase64, workspaceId, captchaToken } = await req.json()
-
-    if (!captchaToken || !(await verifyTurnstileToken(captchaToken))) {
-      return NextResponse.json({ error: 'Invalid or missing captcha token' }, { status: 403 })
-    }
+    const { canvasBase64, workspaceId } = await req.json()
 
     if (!isValidCanvasImage(canvasBase64)) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
