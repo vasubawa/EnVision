@@ -28,7 +28,6 @@ You can jump straight in and use it anonymously, or sign in with a magic link to
 2. Fill in your Supabase and AI provider keys.
    - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are required for the one-time Captcha.
    - **Note:** Make sure to enable "Enable Captcha protection" in your Supabase Auth configuration (using Cloudflare Turnstile) to secure the endpoints.
-   - `CRON_SECRET` is required in production for keep-alive requests.
 
 3. Install dependencies and start the dev server:
 
