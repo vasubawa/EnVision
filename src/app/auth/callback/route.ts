@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { migrateAnonymousWorkspaces } from '@/app/actions/workspace'
+import { migrateAnonymousWorkspacesHelper } from '@/app/actions/workspace'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -32,7 +32,13 @@ export async function GET(request: Request) {
 
     if (!error) {
       if (anonUser?.is_anonymous && sessionData?.user && anonUser.id !== sessionData.user.id) {
-        await migrateAnonymousWorkspaces(anonUser.id, sessionData.user.id)
+        const migrationResult = await migrateAnonymousWorkspacesHelper(
+          anonUser.id,
+          sessionData.user.id,
+        )
+        if (migrationResult.error) {
+          return NextResponse.redirect(`${origin}/login?error=Failed+to+migrate+workspaces`)
+        }
       }
       return NextResponse.redirect(`${origin}${next}`)
     }
