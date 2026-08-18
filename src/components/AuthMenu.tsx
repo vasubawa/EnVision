@@ -5,12 +5,18 @@ import { createClient } from '@/lib/supabase/client'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
-import { Loader2, X, Settings } from 'lucide-react'
+import { Loader2, X, Settings, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useCaptcha } from '@/components/CaptchaModal'
 
-export function AuthMenu() {
+export function AuthMenu({
+  mode = 'landing',
+  themeToggle,
+}: {
+  mode?: 'landing' | 'sidebar'
+  themeToggle?: React.ReactNode
+}) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [supabase] = useState(() => createClient())
@@ -90,32 +96,52 @@ export function AuthMenu() {
 
   return (
     <>
-      <div className="flex items-center gap-4 font-sans text-sm">
+      <div className="flex w-full items-center gap-4 font-sans text-sm">
         {user && !user.is_anonymous ? (
-          <>
-            <span className="text-foreground/80 hidden sm:inline">{user.email}</span>
-            <Link
-              href="/settings"
-              className="text-foreground hover:bg-foreground/5 rounded-full p-1.5 transition-colors"
-              aria-label="Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
+          mode === 'sidebar' ? (
+            <div className="flex w-full flex-col gap-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="bg-primary-500/10 text-primary-500 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold">
+                  {user.email?.[0].toUpperCase()}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span
+                    className="text-foreground/80 truncate text-sm font-medium"
+                    title={user.email}
+                  >
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Link
+                  href="/settings"
+                  className="hover:bg-foreground/5 text-foreground/60 hover:text-foreground flex flex-1 items-center justify-center rounded-md p-2 transition-colors"
+                  aria-label="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Link>
+                <div className="flex flex-1 items-center justify-center">{themeToggle}</div>
+                <form action="/auth/signout" method="POST" className="flex flex-1">
+                  <button
+                    type="submit"
+                    className="text-foreground/60 flex w-full items-center justify-center rounded-md p-2 transition-colors hover:bg-red-500/10 hover:text-red-500"
+                    aria-label="Sign Out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
             <Link
               href="/workspaces"
-              className="text-foreground hover:bg-foreground/5 rounded-xl px-4 py-1.5 font-medium transition-colors"
+              className="bg-foreground text-background hover:bg-foreground/90 rounded-xl px-4 py-1.5 font-medium transition-colors"
             >
               My Workspaces
             </Link>
-            <form action="/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="text-foreground/60 hover:text-foreground font-medium transition-colors"
-              >
-                Sign Out
-              </button>
-            </form>
-          </>
+          )
         ) : (
           <button
             onClick={() => {
