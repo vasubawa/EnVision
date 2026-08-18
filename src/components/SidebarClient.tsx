@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { createWorkspace, deleteWorkspace } from '@/app/(main)/dashboard/actions'
+import { createWorkspace, deleteWorkspace } from '@/app/actions/workspace'
 import { Plus, Loader2, MessageSquare, PanelLeftClose, PanelLeft, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { EnVisionMark } from '@/components/EnVisionMark'
 import { AuthMenu } from '@/components/AuthMenu'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useCaptcha } from '@/components/CaptchaModal'
 import { toast } from 'sonner'
-import { useCaptcha } from './CaptchaModal'
 
 interface Workspace {
   id: string
@@ -20,11 +20,9 @@ interface Workspace {
 
 export default function SidebarClient({
   workspaces,
-  _isAuthenticated,
   children,
 }: {
   workspaces: Workspace[]
-  _isAuthenticated: boolean
   children: React.ReactNode
 }) {
   // Default closed — hydrated from localStorage after mount to avoid blocking
@@ -36,14 +34,14 @@ export default function SidebarClient({
   const router = useRouter()
   const { requireCaptcha } = useCaptcha()
 
-  // Persist sidebar open/closed; first visit defaults to open on desktop
+  // Persist sidebar open/closed; first visit defaults to closed on desktop
   useEffect(() => {
     const stored = localStorage.getItem('sidebar-open')
     if (stored !== null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsOpen(stored === 'true')
     } else {
-      setIsOpen(window.innerWidth >= 768)
+      setIsOpen(false)
     }
   }, [])
 
@@ -55,12 +53,22 @@ export default function SidebarClient({
   const handleNewSession = async () => {
     if (isCreating) return
     setIsCreating(true)
-    try {
-      const captchaToken = await requireCaptcha()
-      const formData = new FormData()
-      if (captchaToken) formData.append('captchaToken', captchaToken)
 
-      const id = await createWorkspace(formData)
+    let token: string | undefined
+    try {
+      token = await requireCaptcha()
+    } catch {
+      setIsCreating(false)
+      return
+    }
+
+    try {
+      const { data: id, error: createError } = await createWorkspace(token)
+
+      if (createError || !id) {
+        throw new Error(createError || 'Failed to create workspace')
+      }
+
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create session')
@@ -79,7 +87,7 @@ export default function SidebarClient({
       toast.success('Session deleted')
       router.refresh()
       if (pathname === `/workspace/${id}`) {
-        router.push('/dashboard')
+        router.push('/workspaces')
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete session')
@@ -107,10 +115,7 @@ export default function SidebarClient({
         >
           {/* Header */}
           <div className="border-border/50 flex h-14 shrink-0 items-center justify-between border-b px-4">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 transition-transform hover:scale-105"
-            >
+            <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
               <EnVisionMark className="text-primary-500 h-6 w-6" />
               <span className="font-serif font-medium tracking-tight">EnVision</span>
             </Link>

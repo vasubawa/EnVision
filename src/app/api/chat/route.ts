@@ -133,6 +133,8 @@ export async function POST(req: NextRequest) {
         })
 
         if (insertError) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to save user message:', insertError)
           return new Response(JSON.stringify({ error: 'Failed to save message' }), { status: 500 })
         }
       }

@@ -13,8 +13,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?: string | null }) {
-  const { file, setGetCanvasImage, setGetCanvasJson, setLastCanvasUpdate, setQueuedImageForChat } =
-    useWorkspaceStore()
+  const { file, setGetCanvasImage, setGetCanvasJson, setLastCanvasUpdate } = useWorkspaceStore()
   const { resolvedTheme } = useTheme()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -106,8 +105,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
               canvas.add(img)
               // Don't send to back if it's manually added via toolbar so it doesn't hide behind existing things
               saveHistory()
-              // Also queue for TutorChat so the AI can see & comment on it
-              setQueuedImageForChat(dataUrl)
             })
             // eslint-disable-next-line no-console
             .catch(console.error)
@@ -160,7 +157,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         reader.readAsArrayBuffer(fileToLoad)
       }
     },
-    [saveHistory, setQueuedImageForChat],
+    [saveHistory],
   )
 
   useEffect(() => {
