@@ -29,7 +29,7 @@ export async function createWorkspace(
       currentUser = data.user
     } else if (currentUser.is_anonymous) {
       // Verify captcha token for existing anonymous users before workspace insertion
-      const isValid = await verifyTurnstileToken(captchaToken)
+      const isValid = await verifyTurnstileToken(captchaToken!)
       if (!isValid) {
         return { error: 'Invalid captcha token' }
       }
