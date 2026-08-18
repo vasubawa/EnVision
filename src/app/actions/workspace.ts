@@ -14,17 +14,20 @@ export async function createWorkspace(
 
   let currentUser = user
 
-  if (!currentUser) {
+  if (!currentUser || currentUser.is_anonymous) {
     if (!captchaToken) {
       return { error: 'Missing captcha token' }
     }
-    const { data, error } = await supabase.auth.signInAnonymously({ options: { captchaToken } })
-    if (error || !data.user) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to sign in anonymously:', error)
-      return { error: 'Failed to sign in anonymously: ' + (error?.message || 'Unknown error') }
+
+    if (!currentUser) {
+      const { data, error } = await supabase.auth.signInAnonymously({ options: { captchaToken } })
+      if (error || !data.user) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to sign in anonymously:', error)
+        return { error: 'Failed to sign in anonymously: ' + (error?.message || 'Unknown error') }
+      }
+      currentUser = data.user
     }
-    currentUser = data.user
   }
 
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -74,7 +77,7 @@ export async function deleteWorkspace(id: string) {
   }
 }
 
-export async function migrateAnonymousWorkspaces(oldUserId: string, newUserId: string) {
+export async function migrateAnonymousWorkspacesHelper(oldUserId: string, newUserId: string) {
   const admin = createAdminClient()
   const { error: updateError } = await admin
     .from('workspaces')

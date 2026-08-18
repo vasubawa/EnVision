@@ -58,14 +58,16 @@ export default function SidebarClient({
       let { data: id, error: createError } = await createWorkspace()
 
       if (createError === 'Missing captcha token') {
+        let token: string
         try {
-          const token = await requireCaptcha()
-          const result = await createWorkspace(token)
-          id = result.data
-          createError = result.error
+          token = await requireCaptcha()
         } catch {
+          setIsCreating(false)
           return
         }
+        const result = await createWorkspace(token)
+        id = result.data
+        createError = result.error
       }
 
       if (createError || !id) {
