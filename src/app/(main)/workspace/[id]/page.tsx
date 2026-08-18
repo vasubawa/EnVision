@@ -62,7 +62,6 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
       workspace={workspace}
       initialMessages={messages || []}
       initialCanvasState={initialCanvasState}
-      isAnonymous={user.is_anonymous ?? false}
     />
   )
 }

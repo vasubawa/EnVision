@@ -19,11 +19,9 @@ interface Workspace {
 
 export default function SidebarClient({
   workspaces,
-  isAnonymous,
   children,
 }: {
   workspaces: Workspace[]
-  isAnonymous: boolean
   children: React.ReactNode
 }) {
   // Default closed — hydrated from localStorage after mount to avoid blocking
