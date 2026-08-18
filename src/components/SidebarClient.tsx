@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { EnVisionMark } from '@/components/EnVisionMark'
 import { AuthMenu } from '@/components/AuthMenu'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useCaptcha } from '@/components/CaptchaModal'
 import { toast } from 'sonner'
 
 interface Workspace {
@@ -31,6 +32,7 @@ export default function SidebarClient({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
+  const { requireCaptcha } = useCaptcha()
 
   // Persist sidebar open/closed; first visit defaults to closed on desktop
   useEffect(() => {
@@ -51,8 +53,17 @@ export default function SidebarClient({
   const handleNewSession = async () => {
     if (isCreating) return
     setIsCreating(true)
+
+    let token: string | undefined
     try {
-      const { data: id, error: createError } = await createWorkspace()
+      token = await requireCaptcha()
+    } catch {
+      setIsCreating(false)
+      return
+    }
+
+    try {
+      const { data: id, error: createError } = await createWorkspace(token)
 
       if (createError || !id) {
         throw new Error(createError || 'Failed to create workspace')

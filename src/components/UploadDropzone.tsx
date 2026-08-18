@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
 import { createWorkspace } from '@/app/actions/workspace'
 import { CameraModal } from './CameraModal'
+import { useCaptcha } from '@/components/CaptchaModal'
 
 function formatFileSize(bytes: number) {
   if (bytes === 0) return '0 Bytes'
@@ -25,6 +26,7 @@ export function UploadDropzone() {
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const { requireCaptcha } = useCaptcha()
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) setFile(acceptedFiles[0])
@@ -46,6 +48,14 @@ export function UploadDropzone() {
     if (useFile && !file) return
     setIsUploading(true)
 
+    let token: string | undefined
+    try {
+      token = await requireCaptcha()
+    } catch {
+      setIsUploading(false)
+      return
+    }
+
     try {
       if (useFile && file) {
         setWorkspaceFile(file)
@@ -57,7 +67,7 @@ export function UploadDropzone() {
         setWorkspaceFile(null)
       }
 
-      const { data: id, error: createError } = await createWorkspace()
+      const { data: id, error: createError } = await createWorkspace(token)
 
       if (createError || !id) {
         throw new Error(createError || 'Failed to create workspace')

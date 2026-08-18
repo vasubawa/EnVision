@@ -2,7 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-export async function createWorkspace(): Promise<{ data?: string; error?: string }> {
+export async function createWorkspace(
+  captchaToken?: string,
+): Promise<{ data?: string; error?: string }> {
   const supabase = await createClient()
 
   const {
@@ -12,7 +14,9 @@ export async function createWorkspace(): Promise<{ data?: string; error?: string
   let currentUser = user
 
   if (!currentUser) {
-    const { data, error } = await supabase.auth.signInAnonymously()
+    const { data, error } = await supabase.auth.signInAnonymously(
+      captchaToken ? { options: { captchaToken } } : undefined,
+    )
     if (error || !data.user) {
       // eslint-disable-next-line no-console
       console.error('Failed to sign in anonymously:', error)
