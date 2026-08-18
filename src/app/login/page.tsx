@@ -9,6 +9,8 @@ import { useCaptcha } from '@/components/CaptchaModal'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const supabase = createClient()
@@ -26,18 +28,35 @@ export default function LoginPage() {
       return
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        captchaToken: token,
-      },
-    })
+    let authError = null
 
-    if (error) {
-      toast.error(error.message)
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          captchaToken: token,
+        },
+      })
+      authError = error
     } else {
-      toast.success('Check your email for the login link.')
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: {
+          captchaToken: token,
+        },
+      })
+      authError = error
+    }
+
+    if (authError) {
+      toast.error(authError.message)
+    } else {
+      toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
+      if (!isSignUp) {
+        window.location.href = '/workspaces'
+      }
     }
     setLoading(false)
   }
@@ -46,9 +65,11 @@ export default function LoginPage() {
     <div className="bg-background text-foreground flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">Sign in to EnVision</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isSignUp ? 'Create an account' : 'Sign in to EnVision'}
+          </h1>
           <p className="text-foreground/60 mt-2 text-sm">
-            Enter your email to receive a magic login link
+            {isSignUp ? 'Enter your details to sign up' : 'Enter your email and password to sign in'}
           </p>
         </div>
 
@@ -60,6 +81,18 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="border-border bg-card text-foreground focus:ring-primary-500 w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
               className="border-border bg-card text-foreground focus:ring-primary-500 w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
               disabled={loading}
             />
@@ -76,9 +109,19 @@ export default function LoginPage() {
                 Please wait
               </>
             ) : (
-              'Send Magic Link'
+              isSignUp ? 'Sign Up' : 'Sign In'
             )}
           </button>
+          
+          <div className="text-center mt-4 text-sm">
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-primary-500 hover:underline transition-colors"
+            >
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
