@@ -32,17 +32,22 @@ export default function SettingsPage() {
     e.preventDefault()
     setUpdatingPassword(true)
 
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    })
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
 
-    if (error) {
-      toast.error(error.message)
-    } else {
-      toast.success('Password updated successfully!')
-      setNewPassword('')
+      if (error) {
+        toast.error(error.message)
+      } else {
+        toast.success('Password updated successfully!')
+        setNewPassword('')
+      }
+    } catch (_err) {
+      toast.error('An unexpected error occurred while updating the password')
+    } finally {
+      setUpdatingPassword(false)
     }
-    setUpdatingPassword(false)
   }
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
@@ -54,16 +59,21 @@ export default function SettingsPage() {
 
     setUpdatingEmail(true)
 
-    const { error } = await supabase.auth.updateUser({
-      email: newEmail,
-    })
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail,
+      })
 
-    if (error) {
-      toast.error(error.message)
-    } else {
-      toast.success('Check your old and new email addresses for confirmation links.')
+      if (error) {
+        toast.error(error.message)
+      } else {
+        toast.success('Check your old and new email addresses for confirmation links.')
+      }
+    } catch (_err) {
+      toast.error('An unexpected error occurred while updating the email')
+    } finally {
+      setUpdatingEmail(false)
     }
-    setUpdatingEmail(false)
   }
 
   if (loadingUser) {
