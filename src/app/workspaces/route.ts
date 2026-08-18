@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
   if (error || !workspaces || workspaces.length === 0) {
     // If no workspace exists, create one
     try {
-      const newWorkspaceId = await createWorkspace()
+      const { data: newWorkspaceId, error: createError } = await createWorkspace()
+
+      if (createError || !newWorkspaceId) {
+        throw new Error(createError || 'Failed to create workspace')
+      }
+
       return NextResponse.redirect(new URL(`/workspace/${newWorkspaceId}`, req.url))
     } catch (_err) {
       return NextResponse.redirect(new URL('/', req.url))

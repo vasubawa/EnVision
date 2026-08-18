@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-export async function createWorkspace() {
+export async function createWorkspace(): Promise<{ data?: string; error?: string }> {
   const supabase = await createClient()
 
   const {
@@ -16,7 +16,7 @@ export async function createWorkspace() {
     if (error || !data.user) {
       // eslint-disable-next-line no-console
       console.error('Failed to sign in anonymously:', error)
-      throw new Error('Failed to sign in anonymously')
+      return { error: 'Failed to sign in anonymously: ' + (error?.message || 'Unknown error') }
     }
     currentUser = data.user
   }
@@ -42,10 +42,10 @@ export async function createWorkspace() {
   if (error || !workspace) {
     // eslint-disable-next-line no-console
     console.error('Failed to create workspace:', error)
-    throw new Error('Failed to create workspace')
+    return { error: 'Failed to create workspace: ' + (error?.message || 'Unknown error') }
   }
 
-  return workspace.id
+  return { data: workspace.id }
 }
 
 export async function deleteWorkspace(id: string) {
