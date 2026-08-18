@@ -56,13 +56,12 @@ export default function SidebarClient({
 
     let token: string | undefined
     try {
-      token = await requireCaptcha()
-    } catch {
-      setIsCreating(false)
-      return
-    }
+      try {
+        token = await requireCaptcha()
+      } catch {
+        return
+      }
 
-    try {
       const { data: id, error: createError } = await createWorkspace(token)
 
       if (createError || !id) {
@@ -72,6 +71,7 @@ export default function SidebarClient({
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create session')
+    } finally {
       setIsCreating(false)
     }
   }

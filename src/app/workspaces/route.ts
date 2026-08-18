@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(1)
 
-  if (error || !workspaces || workspaces.length === 0) {
+  if (error) {
+    return NextResponse.redirect(new URL('/', req.url))
+  }
+
+  if (!workspaces || workspaces.length === 0) {
     // If no workspace exists, create one
     try {
       const { data: newWorkspaceId, error: createError } = await createWorkspace()
