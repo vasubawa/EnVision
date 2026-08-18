@@ -21,12 +21,10 @@ export default function WorkspaceClient({
   workspace,
   initialMessages,
   initialCanvasState,
-  isAnonymous,
 }: {
   workspace: Workspace
   initialMessages: unknown[]
   initialCanvasState: string | null
-  isAnonymous: boolean
 }) {
   // Start closed; open by default on desktop after hydration
   const [isChatOpen, setIsChatOpen] = useState(false)

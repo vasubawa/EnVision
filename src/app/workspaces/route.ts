@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     try {
       const newWorkspaceId = await createWorkspace()
       return NextResponse.redirect(new URL(`/workspace/${newWorkspaceId}`, req.url))
-    } catch (err) {
+    } catch (_err) {
       return NextResponse.redirect(new URL('/', req.url))
     }
   }

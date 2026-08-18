@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-export async function createWorkspace(formData?: FormData) {
+export async function createWorkspace() {
   const supabase = await createClient()
 
   const {

@@ -36,12 +36,10 @@ export function TutorChat({
     is_correct: boolean | null
   }
 
-  const { chatHistory, addChatEntry, setChatHistory, getCanvasImage, lastCanvasUpdate } =
-    useWorkspaceStore()
+  const { chatHistory, addChatEntry, setChatHistory, getCanvasImage } = useWorkspaceStore()
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [input, setInput] = useState('')
   const lastAnalyzedRef = useRef<number>(0)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { requireCaptcha } = useCaptcha()
 
   // Initialize feedback messages from DB
@@ -128,7 +126,7 @@ export function TutorChat({
       await requireCaptcha()
       sendMessage({ text: input, metadata: { createdAt: Date.now() } }, { body: { canvasBase64 } })
       setInput('')
-    } catch (err) {
+    } catch (_err) {
       // Captcha cancelled or failed
       return
     }
@@ -141,7 +139,7 @@ export function TutorChat({
 
     try {
       await requireCaptcha()
-    } catch (err) {
+    } catch (_err) {
       return
     }
 
@@ -180,7 +178,7 @@ export function TutorChat({
 
     try {
       await requireCaptcha()
-    } catch (err) {
+    } catch (_err) {
       return
     }
 
