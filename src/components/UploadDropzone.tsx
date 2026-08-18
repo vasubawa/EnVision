@@ -48,14 +48,6 @@ export function UploadDropzone() {
     if (useFile && !file) return
     setIsUploading(true)
 
-    let token: string | undefined
-    try {
-      token = await requireCaptcha()
-    } catch {
-      setIsUploading(false)
-      return
-    }
-
     try {
       if (useFile && file) {
         setWorkspaceFile(file)
@@ -67,7 +59,19 @@ export function UploadDropzone() {
         setWorkspaceFile(null)
       }
 
-      const { data: id, error: createError } = await createWorkspace(token)
+      let { data: id, error: createError } = await createWorkspace()
+
+      if (createError === 'Missing captcha token') {
+        try {
+          const token = await requireCaptcha()
+          const result = await createWorkspace(token)
+          id = result.data
+          createError = result.error
+        } catch {
+          setIsUploading(false)
+          return
+        }
+      }
 
       if (createError || !id) {
         throw new Error(createError || 'Failed to create workspace')
