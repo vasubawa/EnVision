@@ -4,7 +4,7 @@ import { Send, Loader2, Wand2, BrainCircuit } from 'lucide-react'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
 import { useChat } from '@ai-sdk/react'
-import { useCaptcha } from '@/components/CaptchaModal'
+
 import { DefaultChatTransport, type UIMessage } from 'ai'
 import { MathRenderer } from './MathRenderer'
 import { ChatEntry } from '@/types/feedback'
@@ -40,7 +40,6 @@ export function TutorChat({
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [input, setInput] = useState('')
   const lastAnalyzedRef = useRef<number>(0)
-  const { requireCaptcha } = useCaptcha()
 
   // Initialize feedback messages from DB
   useEffect(() => {
@@ -122,17 +121,8 @@ export function TutorChat({
       return
     }
 
-    try {
-      const token = await requireCaptcha()
-      sendMessage(
-        { text: input, metadata: { createdAt: Date.now() } },
-        { body: { canvasBase64, captchaToken: token } },
-      )
-      setInput('')
-    } catch (_err) {
-      // Captcha cancelled or failed
-      return
-    }
+    sendMessage({ text: input, metadata: { createdAt: Date.now() } }, { body: { canvasBase64 } })
+    setInput('')
   }
 
   const handleCheckWork = useCallback(async () => {
@@ -140,19 +130,12 @@ export function TutorChat({
     const canvasBase64 = getCanvasImage()
     if (!canvasBase64) return
 
-    let token: string
-    try {
-      token = await requireCaptcha()
-    } catch (_err) {
-      return
-    }
-
     setIsAnalyzing(true)
     try {
       const res = await fetch('/api/analyze-work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canvasBase64, workspaceId, captchaToken: token }),
+        body: JSON.stringify({ canvasBase64, workspaceId }),
       })
 
       if (!res.ok) throw new Error('Analysis failed')
@@ -173,26 +156,19 @@ export function TutorChat({
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry, workspaceId, requireCaptcha])
+  }, [getCanvasImage, addChatEntry, workspaceId])
 
   const handleDeepAnalysis = useCallback(async () => {
     if (!getCanvasImage) return
     const canvasBase64 = getCanvasImage()
     if (!canvasBase64) return
 
-    let token: string
-    try {
-      token = await requireCaptcha()
-    } catch (_err) {
-      return
-    }
-
     setIsAnalyzing(true)
     try {
       const res = await fetch('/api/analyze-work-deep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canvasBase64, workspaceId, captchaToken: token }),
+        body: JSON.stringify({ canvasBase64, workspaceId }),
       })
 
       if (!res.ok) throw new Error('Deep analysis failed')
@@ -213,7 +189,7 @@ export function TutorChat({
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry, workspaceId, requireCaptcha])
+  }, [getCanvasImage, addChatEntry, workspaceId])
 
   return (
     <div className="relative flex h-full w-full flex-col bg-transparent">

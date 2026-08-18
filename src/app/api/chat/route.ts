@@ -4,7 +4,6 @@ import { createGroq } from '@ai-sdk/groq'
 import { MODELS, apiKey, stripThinking } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
-import { verifyTurnstileToken } from '@/lib/turnstile'
 
 export const maxDuration = 60
 
@@ -29,17 +28,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const {
-      messages,
-      canvasBase64,
-      captchaToken,
-    }: { messages: UIMessage[]; canvasBase64?: string; captchaToken?: string } = await req.json()
-
-    if (!captchaToken || !(await verifyTurnstileToken(captchaToken))) {
-      return new Response(JSON.stringify({ error: 'Invalid or missing captcha token' }), {
-        status: 403,
-      })
-    }
+    const { messages, canvasBase64 }: { messages: UIMessage[]; canvasBase64?: string } =
+      await req.json()
 
     if (canvasBase64 && !isValidCanvasImage(canvasBase64)) {
       return new Response(JSON.stringify({ error: 'Invalid canvas image.' }), { status: 400 })

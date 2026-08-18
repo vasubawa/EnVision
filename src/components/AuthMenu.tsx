@@ -7,9 +7,8 @@ import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
 import { Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+
 import { useCaptcha } from '@/components/CaptchaModal'
-import { migrateAndSignIn } from '@/app/actions/workspace'
 
 export function AuthMenu() {
   const [user, setUser] = useState<User | null>(null)
@@ -17,14 +16,11 @@ export function AuthMenu() {
   const [supabase] = useState(() => createClient())
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const emailInputRef = useRef<HTMLInputElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
-  const router = useRouter()
   const { requireCaptcha } = useCaptcha()
 
   useEffect(() => {
@@ -47,72 +43,25 @@ export function AuthMenu() {
     setAuthLoading(true)
 
     try {
-      if (isSignUp) {
-        if (user?.is_anonymous) {
-          const { error } = await supabase.auth.updateUser({ email, password })
-          if (error) {
-            toast.error(error.message)
-          } else {
-            toast.success('Check your email to verify your account.')
-          }
-        } else {
-          let token = ''
-          try {
-            token = await requireCaptcha()
-          } catch (_err) {
-            return
-          }
+      let token = ''
+      try {
+        token = await requireCaptcha()
+      } catch (_err) {
+        return
+      }
 
-          const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-              captchaToken: token,
-            },
-          })
-          if (error) {
-            toast.error(error.message)
-          } else {
-            toast.success('Check your email to verify your account.')
-          }
-        }
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          captchaToken: token,
+        },
+      })
+      if (error) {
+        toast.error(error.message)
       } else {
-        if (user?.is_anonymous) {
-          let token = ''
-          try {
-            token = await requireCaptcha()
-          } catch (_err) {
-            return
-          }
-          const { error } = await migrateAndSignIn(email, password, token)
-          if (error) {
-            toast.error(error)
-          } else {
-            toast.success('Successfully signed in and migrated!')
-            setIsModalOpen(false)
-            router.refresh()
-          }
-        } else {
-          let token = ''
-          try {
-            token = await requireCaptcha()
-          } catch (_err) {
-            return
-          }
-          const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-            options: { captchaToken: token },
-          })
-          if (error) {
-            toast.error(error.message)
-          } else {
-            toast.success('Successfully signed in!')
-            setIsModalOpen(false)
-            router.refresh()
-          }
-        }
+        toast.success('Check your email for the login link.')
+        setIsModalOpen(false)
       }
     } finally {
       setAuthLoading(false)
@@ -179,12 +128,10 @@ export function AuthMenu() {
 
               <div className="mb-6 text-center">
                 <h2 id="auth-modal-title" className="text-xl font-bold tracking-tight">
-                  {isSignUp ? 'Create an account' : 'Sign in to EnVision'}
+                  Sign in to EnVision
                 </h2>
                 <p className="text-foreground/60 mt-1 text-sm">
-                  {isSignUp
-                    ? 'Enter your details below to create your account'
-                    : 'Enter your email and password to sign in'}
+                  Enter your email to receive a magic login link
                 </p>
               </div>
 
@@ -205,22 +152,7 @@ export function AuthMenu() {
                     disabled={authLoading}
                   />
                 </div>
-                <div>
-                  <label htmlFor="auth-password" className="sr-only">
-                    Password
-                  </label>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="border-border bg-card text-foreground focus:ring-primary-500 w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-none"
-                    disabled={authLoading}
-                  />
-                </div>
+
                 <button
                   type="submit"
                   className="bg-primary-500 hover:bg-primary-600 flex w-full items-center justify-center rounded-md px-4 py-2 text-white transition-colors disabled:opacity-50"
@@ -231,23 +163,11 @@ export function AuthMenu() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Please wait
                     </>
-                  ) : isSignUp ? (
-                    'Sign Up'
                   ) : (
-                    'Sign In'
+                    'Send Magic Link'
                   )}
                 </button>
               </form>
-
-              <div className="mt-4 text-center text-sm">
-                <button
-                  type="button"
-                  className="text-foreground/60 hover:text-foreground transition-colors"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                >
-                  {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-                </button>
-              </div>
             </div>
           </div>,
           document.body,
