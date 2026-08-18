@@ -12,12 +12,7 @@ export async function createWorkspace(formData?: FormData) {
   let currentUser = user
 
   if (!currentUser) {
-    const captchaToken = formData?.get('captchaToken') as string | undefined
-    const { data, error } = await supabase.auth.signInAnonymously({
-      options: {
-        captchaToken,
-      },
-    })
+    const { data, error } = await supabase.auth.signInAnonymously()
     if (error || !data.user) {
       // eslint-disable-next-line no-console
       console.error('Failed to sign in anonymously:', error)
@@ -26,11 +21,20 @@ export async function createWorkspace(formData?: FormData) {
     currentUser = data.user
   }
 
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+  const title = `Session: ${formatter.format(new Date())}`
+
   const { data: workspace, error } = await supabase
     .from('workspaces')
     .insert({
       user_id: currentUser.id,
-      title: 'Untitled workspace',
+      title,
     })
     .select('id')
     .single()

@@ -4,6 +4,7 @@ import { Send, Loader2, Wand2, BrainCircuit } from 'lucide-react'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
 import { useChat } from '@ai-sdk/react'
+import { useCaptcha } from '@/components/CaptchaModal'
 import { DefaultChatTransport, type UIMessage } from 'ai'
 import { MathRenderer } from './MathRenderer'
 import { ChatEntry } from '@/types/feedback'
@@ -35,26 +36,13 @@ export function TutorChat({
     is_correct: boolean | null
   }
 
-  const {
-    chatHistory,
-    addChatEntry,
-    setChatHistory,
-    getCanvasImage,
-    lastCanvasUpdate,
-    isAutoCheckEnabled,
-    setIsAutoCheckEnabled,
-    autoCheckDelay,
-    setAutoCheckDelay,
-    pendingFileForChat,
-    setPendingFileForChat,
-    queuedImageForChat,
-    setQueuedImageForChat,
-  } = useWorkspaceStore()
+  const { chatHistory, addChatEntry, setChatHistory, getCanvasImage, lastCanvasUpdate } =
+    useWorkspaceStore()
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [input, setInput] = useState('')
   const lastAnalyzedRef = useRef<number>(0)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const hasSentPendingFile = useRef(false)
+  const { requireCaptcha } = useCaptcha()
 
   // Initialize feedback messages from DB
   useEffect(() => {
@@ -94,55 +82,6 @@ export function TutorChat({
     onError: (err: Error) => toast.error(err.message),
   })
   const isLoading = status === 'submitted' || status === 'streaming'
-
-  // Send pending file (camera capture / uploaded worksheet) as opening message
-  useEffect(() => {
-    if (!pendingFileForChat || hasSentPendingFile.current) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result as string
-      hasSentPendingFile.current = true
-      setPendingFileForChat(null)
-      sendMessage(
-        {
-          text: "I've shared an image of my worksheet. Please take a look and help me understand the problems on it.",
-          metadata: { createdAt: Date.now() },
-        },
-        { body: { canvasBase64: dataUrl } },
-      )
-    }
-
-    if (pendingFileForChat.type === 'application/pdf') {
-      // For PDFs we cannot cheaply render in-browser here;
-      // send a text-only note so the tutor knows one was uploaded.
-      hasSentPendingFile.current = true
-      setPendingFileForChat(null)
-      sendMessage(
-        {
-          text: `I've uploaded a PDF worksheet called "${pendingFileForChat.name}". Once it loads on my whiteboard, please help me with the problems on it.`,
-          metadata: { createdAt: Date.now() },
-        },
-        { body: {} },
-      )
-    } else {
-      reader.readAsDataURL(pendingFileForChat)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Send images uploaded via the in-workspace toolbar to the AI chat
-  useEffect(() => {
-    if (!queuedImageForChat) return
-    setQueuedImageForChat(null)
-    sendMessage(
-      {
-        text: 'I just added an image to the workspace. Please take a look and help me understand any problems shown in it.',
-        metadata: { createdAt: Date.now() },
-      },
-      { body: { canvasBase64: queuedImageForChat } },
-    )
-  }, [queuedImageForChat, setQueuedImageForChat, sendMessage])
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -185,14 +124,26 @@ export function TutorChat({
       return
     }
 
-    sendMessage({ text: input, metadata: { createdAt: Date.now() } }, { body: { canvasBase64 } })
-    setInput('')
+    try {
+      await requireCaptcha()
+      sendMessage({ text: input, metadata: { createdAt: Date.now() } }, { body: { canvasBase64 } })
+      setInput('')
+    } catch (err) {
+      // Captcha cancelled or failed
+      return
+    }
   }
 
   const handleCheckWork = useCallback(async () => {
     if (!getCanvasImage) return
     const canvasBase64 = getCanvasImage()
     if (!canvasBase64) return
+
+    try {
+      await requireCaptcha()
+    } catch (err) {
+      return
+    }
 
     setIsAnalyzing(true)
     try {
@@ -220,12 +171,18 @@ export function TutorChat({
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry, workspaceId])
+  }, [getCanvasImage, addChatEntry, workspaceId, requireCaptcha])
 
   const handleDeepAnalysis = useCallback(async () => {
     if (!getCanvasImage) return
     const canvasBase64 = getCanvasImage()
     if (!canvasBase64) return
+
+    try {
+      await requireCaptcha()
+    } catch (err) {
+      return
+    }
 
     setIsAnalyzing(true)
     try {
@@ -253,42 +210,7 @@ export function TutorChat({
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry, workspaceId])
-
-  // Automated feedback on inactivity (5 seconds)
-  useEffect(() => {
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-
-    // Only trigger if auto-check is enabled, canvas actually updated, and we aren't currently analyzing
-    if (
-      isAutoCheckEnabled &&
-      lastCanvasUpdate > 0 &&
-      lastCanvasUpdate > lastAnalyzedRef.current &&
-      !isAnalyzing &&
-      !isLoading
-    ) {
-      timeoutRef.current = setTimeout(() => {
-        // Prevent double triggers
-        if (lastCanvasUpdate > lastAnalyzedRef.current) {
-          handleCheckWork()
-        }
-      }, autoCheckDelay)
-    }
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    }
-  }, [
-    lastCanvasUpdate,
-    isAnalyzing,
-    isLoading,
-    isAutoCheckEnabled,
-    autoCheckDelay,
-    handleCheckWork,
-  ])
+  }, [getCanvasImage, addChatEntry, workspaceId, requireCaptcha])
 
   return (
     <div className="relative flex h-full w-full flex-col bg-transparent">
@@ -381,37 +303,6 @@ export function TutorChat({
               <BrainCircuit className="h-3.5 w-3.5" />
               Deep analysis
             </button>
-          </div>
-
-          {/* Auto-check Settings */}
-          <div className="flex items-center gap-3 px-1">
-            <label className="text-foreground/80 hover:text-foreground flex cursor-pointer items-center gap-2 text-xs transition-colors">
-              <input
-                type="checkbox"
-                checked={isAutoCheckEnabled}
-                onChange={(e) => setIsAutoCheckEnabled(e.target.checked)}
-                className="border-border bg-card accent-primary-500 h-3.5 w-3.5 cursor-pointer rounded"
-              />
-              Auto-check work
-            </label>
-
-            {isAutoCheckEnabled && (
-              <div className="text-foreground/60 animate-in fade-in slide-in-from-left-2 flex items-center gap-1.5 text-xs duration-200">
-                <span>after</span>
-                <select
-                  value={autoCheckDelay}
-                  onChange={(e) => setAutoCheckDelay(Number(e.target.value))}
-                  className="bg-card border-border focus:border-primary-500/50 hover:border-border/80 cursor-pointer rounded-md border px-1.5 py-0.5 text-xs transition-colors outline-none"
-                >
-                  <option value={5000}>5s</option>
-                  <option value={10000}>10s</option>
-                  <option value={15000}>15s</option>
-                  <option value={30000}>30s</option>
-                  <option value={60000}>60s</option>
-                </select>
-                <span>idle</span>
-              </div>
-            )}
           </div>
         </div>
 

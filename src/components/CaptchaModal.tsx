@@ -18,6 +18,10 @@ export function CaptchaProvider({ children }: { children: ReactNode }) {
 
   const requireCaptcha = useCallback(() => {
     return new Promise<string>((resolve, reject) => {
+      if (process.env.NODE_ENV === 'development') {
+        resolve('bypass')
+        return
+      }
       if (!siteKey) {
         // If no sitekey is configured, immediately resolve with empty string so the app doesn't break
         resolve('')

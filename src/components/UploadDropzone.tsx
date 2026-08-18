@@ -6,9 +6,8 @@ import { useDropzone } from 'react-dropzone'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
-import { createWorkspace } from '@/app/(main)/dashboard/actions'
+import { createWorkspace } from '@/app/actions/workspace'
 import { CameraModal } from './CameraModal'
-import { useCaptcha } from './CaptchaModal'
 
 function formatFileSize(bytes: number) {
   if (bytes === 0) return '0 Bytes'
@@ -42,8 +41,6 @@ export function UploadDropzone() {
 
   const router = useRouter()
   const setWorkspaceFile = useWorkspaceStore((state) => state.setFile)
-  const setPendingFileForChat = useWorkspaceStore((state) => state.setPendingFileForChat)
-  const { requireCaptcha } = useCaptcha()
 
   const handleStartLearning = async (useFile: boolean = true) => {
     if (useFile && !file) return
@@ -52,7 +49,6 @@ export function UploadDropzone() {
     try {
       if (useFile && file) {
         setWorkspaceFile(file)
-        setPendingFileForChat(file)
         toast.success('Extraction complete!', {
           id: TOAST_IDS.EXTRACT,
           description: 'Opening your workspace...',
@@ -61,11 +57,7 @@ export function UploadDropzone() {
         setWorkspaceFile(null)
       }
 
-      const captchaToken = await requireCaptcha()
-      const formData = new FormData()
-      if (captchaToken) formData.append('captchaToken', captchaToken)
-
-      const id = await createWorkspace(formData)
+      const id = await createWorkspace()
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create workspace')
