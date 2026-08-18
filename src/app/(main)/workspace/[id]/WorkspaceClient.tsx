@@ -1,8 +1,8 @@
 'use client'
 
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
-import { useEffect, useState } from 'react'
-import { MessageSquare, X } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { MessageSquare, X, Edit2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import dynamic from 'next/dynamic'
 const Whiteboard = dynamic(
@@ -28,6 +28,11 @@ export default function WorkspaceClient({
 }) {
   // Start closed; open by default on desktop after hydration
   const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [title, setTitle] = useState(workspace.title || 'Blank Workspace')
+  const [isSavingTitle, setIsSavingTitle] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
   const { lastCanvasUpdate, getCanvasJson } = useWorkspaceStore()
   const supabase = createClient()
 
@@ -74,12 +79,76 @@ export default function WorkspaceClient({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
+  const handleTitleSubmit = async () => {
+    if (!title.trim() || title === workspace.title) {
+      setIsEditingTitle(false)
+      setTitle(workspace.title || 'Blank Workspace')
+      return
+    }
+
+    setIsSavingTitle(true)
+    try {
+      const { error } = await supabase
+        .from('workspaces')
+        .update({ title: title.trim() })
+        .eq('id', workspace.id)
+
+      if (error) throw error
+      setIsEditingTitle(false)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to update title:', err)
+      setTitle(workspace.title || 'Blank Workspace')
+    } finally {
+      setIsSavingTitle(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus()
+    }
+  }, [isEditingTitle])
+
   return (
     <div className="text-foreground flex h-[100dvh] w-full flex-col overflow-hidden bg-transparent">
       {/* Workspace Header — slim on mobile */}
       <header className="border-border/50 bg-background/50 z-40 flex h-11 shrink-0 items-center justify-center border-b px-4 backdrop-blur-md sm:h-14">
-        <div className="text-foreground/80 font-serif text-sm font-medium">
-          {workspace.title || 'Blank Workspace'}
+        <div className="flex items-center justify-center gap-2">
+          {isEditingTitle ? (
+            <div className="flex items-center gap-2">
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleTitleSubmit()
+                  if (e.key === 'Escape') {
+                    setIsEditingTitle(false)
+                    setTitle(workspace.title || 'Blank Workspace')
+                  }
+                }}
+                disabled={isSavingTitle}
+                className="bg-foreground/5 border-border rounded px-2 py-1 text-sm font-medium outline-none"
+              />
+              <button
+                onClick={handleTitleSubmit}
+                disabled={isSavingTitle}
+                className="text-foreground/50 hover:text-foreground p-1 transition-colors"
+              >
+                <Check className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div
+              className="text-foreground/80 hover:text-foreground group hover:bg-foreground/5 flex cursor-pointer items-center gap-2 rounded px-2 py-1 font-serif text-sm font-medium transition-colors"
+              onClick={() => setIsEditingTitle(true)}
+            >
+              {title}
+              <Edit2 className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+            </div>
+          )}
         </div>
       </header>
 

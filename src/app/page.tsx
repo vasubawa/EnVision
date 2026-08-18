@@ -78,7 +78,6 @@ export default function LandingPage() {
                 'Freehand whiteboard',
                 'PDF & photo upload',
                 'LaTeX rendering',
-                'Auto work-check',
               ].map((label) => (
                 <span
                   key={label}

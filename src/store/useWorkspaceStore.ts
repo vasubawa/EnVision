@@ -5,14 +5,6 @@ interface WorkspaceState {
   file: File | null
   setFile: (file: File | null) => void
 
-  // File queued to be sent as the first chat message when entering a workspace
-  pendingFileForChat: File | null
-  setPendingFileForChat: (file: File | null) => void
-
-  // Base64 image data URL queued from in-workspace uploads (toolbar/camera) to be sent to chat
-  queuedImageForChat: string | null
-  setQueuedImageForChat: (dataUrl: string | null) => void
-
   // Hybrid Feed
   chatHistory: ChatEntry[]
   addChatEntry: (entry: ChatEntry) => void
@@ -27,23 +19,11 @@ interface WorkspaceState {
 
   lastCanvasUpdate: number
   setLastCanvasUpdate: (timestamp: number) => void
-
-  // Auto-Check Settings
-  isAutoCheckEnabled: boolean
-  setIsAutoCheckEnabled: (enabled: boolean) => void
-  autoCheckDelay: number
-  setAutoCheckDelay: (delay: number) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   file: null,
   setFile: (file) => set({ file }),
-
-  pendingFileForChat: null,
-  setPendingFileForChat: (file) => set({ pendingFileForChat: file }),
-
-  queuedImageForChat: null,
-  setQueuedImageForChat: (dataUrl) => set({ queuedImageForChat: dataUrl }),
 
   chatHistory: [],
   addChatEntry: (entry) => set((state) => ({ chatHistory: [...state.chatHistory, entry] })),
@@ -57,9 +37,4 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   lastCanvasUpdate: 0,
   setLastCanvasUpdate: (timestamp) => set({ lastCanvasUpdate: timestamp }),
-
-  isAutoCheckEnabled: false,
-  setIsAutoCheckEnabled: (enabled) => set({ isAutoCheckEnabled: enabled }),
-  autoCheckDelay: 5000,
-  setAutoCheckDelay: (delay) => set({ autoCheckDelay: delay }),
 }))

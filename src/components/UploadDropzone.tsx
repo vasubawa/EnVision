@@ -6,9 +6,9 @@ import { useDropzone } from 'react-dropzone'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useWorkspaceStore } from '@/store/useWorkspaceStore'
-import { createWorkspace } from '@/app/(main)/dashboard/actions'
+import { createWorkspace } from '@/app/actions/workspace'
 import { CameraModal } from './CameraModal'
-import { useCaptcha } from './CaptchaModal'
+import { useCaptcha } from '@/components/CaptchaModal'
 
 function formatFileSize(bytes: number) {
   if (bytes === 0) return '0 Bytes'
@@ -26,6 +26,7 @@ export function UploadDropzone() {
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const { requireCaptcha } = useCaptcha()
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) setFile(acceptedFiles[0])
@@ -42,17 +43,22 @@ export function UploadDropzone() {
 
   const router = useRouter()
   const setWorkspaceFile = useWorkspaceStore((state) => state.setFile)
-  const setPendingFileForChat = useWorkspaceStore((state) => state.setPendingFileForChat)
-  const { requireCaptcha } = useCaptcha()
 
   const handleStartLearning = async (useFile: boolean = true) => {
     if (useFile && !file) return
     setIsUploading(true)
 
+    let token: string | undefined
+    try {
+      token = await requireCaptcha()
+    } catch {
+      setIsUploading(false)
+      return
+    }
+
     try {
       if (useFile && file) {
         setWorkspaceFile(file)
-        setPendingFileForChat(file)
         toast.success('Extraction complete!', {
           id: TOAST_IDS.EXTRACT,
           description: 'Opening your workspace...',
@@ -61,11 +67,12 @@ export function UploadDropzone() {
         setWorkspaceFile(null)
       }
 
-      const captchaToken = await requireCaptcha()
-      const formData = new FormData()
-      if (captchaToken) formData.append('captchaToken', captchaToken)
+      const { data: id, error: createError } = await createWorkspace(token)
 
-      const id = await createWorkspace(formData)
+      if (createError || !id) {
+        throw new Error(createError || 'Failed to create workspace')
+      }
+
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create workspace')
