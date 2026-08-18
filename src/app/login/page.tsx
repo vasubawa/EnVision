@@ -30,37 +30,42 @@ export default function LoginPage() {
       return
     }
 
-    let authError = null
+    try {
+      let authError = null
 
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          captchaToken: token,
-        },
-      })
-      authError = error
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-        options: {
-          captchaToken: token,
-        },
-      })
-      authError = error
-    }
-
-    if (authError) {
-      toast.error(authError.message)
-    } else {
-      toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
-      if (!isSignUp) {
-        router.push('/workspaces')
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            captchaToken: token,
+          },
+        })
+        authError = error
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: {
+            captchaToken: token,
+          },
+        })
+        authError = error
       }
+
+      if (authError) {
+        toast.error(authError.message)
+      } else {
+        toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
+        if (!isSignUp) {
+          router.push('/workspaces')
+        }
+      }
+    } catch (_err) {
+      toast.error('An unexpected error occurred during authentication')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -90,7 +95,11 @@ export default function LoginPage() {
             />
           </div>
           <div>
+            <label htmlFor="auth-password" className="sr-only">
+              Password
+            </label>
             <input
+              id="auth-password"
               type="password"
               placeholder="Password"
               value={password}
