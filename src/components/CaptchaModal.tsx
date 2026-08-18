@@ -47,8 +47,15 @@ export function CaptchaProvider({ children }: { children: ReactNode }) {
       {children}
       {isOpen && siteKey && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-md transition-all duration-300">
-          <div className="bg-background border-border/50 flex flex-col items-center rounded-2xl border p-8 shadow-2xl">
-            <h3 className="mb-2 text-xl font-medium tracking-tight">Security Check</h3>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="captcha-modal-title"
+            className="bg-background border-border/50 flex flex-col items-center rounded-2xl border p-8 shadow-2xl"
+          >
+            <h3 id="captcha-modal-title" className="mb-2 text-xl font-medium tracking-tight">
+              Security Check
+            </h3>
             <p className="text-foreground/70 mb-8 text-center text-sm">
               Please complete the verification below
               <br />

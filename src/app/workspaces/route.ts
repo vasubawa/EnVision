@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createWorkspace } from '@/app/actions/workspace'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -28,13 +27,29 @@ export async function GET(req: NextRequest) {
   if (!workspaces || workspaces.length === 0) {
     // If no workspace exists, create one
     try {
-      const { data: newWorkspaceId, error: createError } = await createWorkspace()
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+      const title = `Session: ${formatter.format(new Date())}`
 
-      if (createError || !newWorkspaceId) {
-        throw new Error(createError || 'Failed to create workspace')
+      const { data: newWorkspace, error: createError } = await supabase
+        .from('workspaces')
+        .insert({
+          user_id: user.id,
+          title,
+        })
+        .select('id')
+        .single()
+
+      if (createError || !newWorkspace) {
+        throw new Error(createError?.message || 'Failed to create workspace')
       }
 
-      return NextResponse.redirect(new URL(`/workspace/${newWorkspaceId}`, req.url))
+      return NextResponse.redirect(new URL(`/workspace/${newWorkspace.id}`, req.url))
     } catch (_err) {
       return NextResponse.redirect(new URL('/', req.url))
     }

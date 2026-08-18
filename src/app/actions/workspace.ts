@@ -10,11 +10,6 @@ export async function createWorkspace(
     return { error: 'Missing captcha token' }
   }
 
-  const isValid = await verifyTurnstileToken(captchaToken)
-  if (!isValid) {
-    return { error: 'Invalid captcha token' }
-  }
-
   const supabase = await createClient()
 
   const {
@@ -31,6 +26,12 @@ export async function createWorkspace(
       return { error: 'Failed to sign in anonymously: ' + (error?.message || 'Unknown error') }
     }
     currentUser = data.user
+  } else {
+    // Only verify manually if we're not consuming the token in signInAnonymously
+    const isValid = await verifyTurnstileToken(captchaToken)
+    if (!isValid) {
+      return { error: 'Invalid captcha token' }
+    }
   }
 
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -106,6 +107,7 @@ export async function migrateAndSignIn(email: string, password: string, captchaT
     if (updateError) {
       // eslint-disable-next-line no-console
       console.error('Failed to migrate workspaces:', updateError)
+      return { error: 'Failed to migrate workspaces: ' + updateError.message }
     }
   }
 
