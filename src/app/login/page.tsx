@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const supabase = createClient()
   const { requireCaptcha } = useCaptcha()
@@ -55,7 +57,7 @@ export default function LoginPage() {
     } else {
       toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
       if (!isSignUp) {
-        window.location.href = '/workspaces'
+        router.push('/workspaces')
       }
     }
     setLoading(false)
@@ -69,7 +71,9 @@ export default function LoginPage() {
             {isSignUp ? 'Create an account' : 'Sign in to EnVision'}
           </h1>
           <p className="text-foreground/60 mt-2 text-sm">
-            {isSignUp ? 'Enter your details to sign up' : 'Enter your email and password to sign in'}
+            {isSignUp
+              ? 'Enter your details to sign up'
+              : 'Enter your email and password to sign in'}
           </p>
         </div>
 
@@ -108,16 +112,18 @@ export default function LoginPage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Please wait
               </>
+            ) : isSignUp ? (
+              'Sign Up'
             ) : (
-              isSignUp ? 'Sign Up' : 'Sign In'
+              'Sign In'
             )}
           </button>
-          
-          <div className="text-center mt-4 text-sm">
+
+          <div className="mt-4 text-center text-sm">
             <button
               type="button"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-primary-500 hover:underline transition-colors"
+              className="text-primary-500 transition-colors hover:underline"
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
