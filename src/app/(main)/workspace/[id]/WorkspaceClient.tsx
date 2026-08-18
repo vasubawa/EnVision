@@ -30,6 +30,7 @@ export default function WorkspaceClient({
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [title, setTitle] = useState(workspace.title || 'Blank Workspace')
+  const [committedTitle, setCommittedTitle] = useState(workspace.title || 'Blank Workspace')
   const [isSavingTitle, setIsSavingTitle] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
@@ -80,9 +81,9 @@ export default function WorkspaceClient({
   }, [])
 
   const handleTitleSubmit = async () => {
-    if (!title.trim() || title === workspace.title) {
+    if (!title.trim() || title.trim() === committedTitle) {
       setIsEditingTitle(false)
-      setTitle(workspace.title || 'Blank Workspace')
+      setTitle(committedTitle)
       return
     }
 
@@ -94,11 +95,14 @@ export default function WorkspaceClient({
         .eq('id', workspace.id)
 
       if (error) throw error
+      const newTitle = title.trim()
+      setTitle(newTitle)
+      setCommittedTitle(newTitle)
       setIsEditingTitle(false)
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to update title:', err)
-      setTitle(workspace.title || 'Blank Workspace')
+      setTitle(committedTitle)
     } finally {
       setIsSavingTitle(false)
     }
@@ -126,10 +130,11 @@ export default function WorkspaceClient({
                   if (e.key === 'Enter') handleTitleSubmit()
                   if (e.key === 'Escape') {
                     setIsEditingTitle(false)
-                    setTitle(workspace.title || 'Blank Workspace')
+                    setTitle(committedTitle)
                   }
                 }}
                 disabled={isSavingTitle}
+                aria-label="Workspace title"
                 className="bg-foreground/5 border-border rounded px-2 py-1 text-sm font-medium outline-none"
               />
               <button
@@ -141,13 +146,14 @@ export default function WorkspaceClient({
               </button>
             </div>
           ) : (
-            <div
+            <button
               className="text-foreground/80 hover:text-foreground group hover:bg-foreground/5 flex cursor-pointer items-center gap-2 rounded px-2 py-1 font-serif text-sm font-medium transition-colors"
               onClick={() => setIsEditingTitle(true)}
+              aria-label="Edit title"
             >
               {title}
               <Edit2 className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
-            </div>
+            </button>
           )}
         </div>
       </header>
