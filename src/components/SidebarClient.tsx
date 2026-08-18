@@ -187,10 +187,7 @@ export default function SidebarClient({
           {/* Footer */}
           <div className="border-border/50 shrink-0 border-t p-4">
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <AuthMenu />
-                <ThemeToggle />
-              </div>
+              <AuthMenu mode="sidebar" themeToggle={<ThemeToggle />} />
             </div>
           </div>
         </div>
