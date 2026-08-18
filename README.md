@@ -1,47 +1,56 @@
 # EnVision
 
-An AI-tutored whiteboard for physics, chemistry, and calculus. Upload a problem set, work it out by hand on the canvas, and get Socratic feedback as you go instead of a worked answer. Anonymous workspaces are supported so you can jump straight into learning, with a security captcha enforced right before AI interaction.
+![EnVision Landing Page](./public/landingpage.png)
+
+An AI-tutored whiteboard for physics, chemistry, and calculus. Upload a problem set, work it out by hand on the canvas, and get Socratic feedback as you go—instead of just being handed the answer.
+
+You can jump straight in and use it anonymously, or sign in with a magic link to save your work.
 
 ## Features
 
-- **Instant Workspaces**: Jump straight into a blank canvas or document upload instantly without an account.
-- **Socratic AI Tutor**: Get hints and guidance on your work using our chat integration.
-- **File Uploads**: Works with PDFs and standard images, plus an integrated camera modal.
-- **Inline Renaming**: Easily click to rename your active session.
-- **Privacy-first**: "Sign in to save work" approach allowing anonymous usage with Captcha security at the AI interaction layer.
+- **Instant Workspaces**: Start learning immediately. No account required to jump into a blank canvas or upload a document.
+- **Socratic AI Tutor**: Get hints and guidance on your work via chat. The AI checks your math and asks guiding questions.
+- **File Uploads**: Works with PDFs and images. You can also use the integrated camera to snap a picture of your homework.
+- **Privacy-first**: "Sign in to save work" approach. Anonymous sessions are protected by a one-time Captcha to keep bots out.
+- **Magic Link Auth**: Easy, passwordless sign-in when you're ready to save your progress.
 
-## Stack
+## Tech Stack
 
-- Next.js (App Router) + Tailwind CSS
-- Supabase (magic-link auth, Postgres, anonymous sessions)
-- Fabric.js canvas, pdf.js for worksheet imports
-- Groq / NVIDIA NIM for vision transcription and tutoring models
-- Turnstile for Captcha verification
+- **Framework**: Next.js (App Router) + Tailwind CSS
+- **Database & Auth**: Supabase (Postgres, Magic Links, Anonymous sessions)
+- **Canvas**: Fabric.js for drawing, PDF.js for worksheet imports
+- **AI Models**: Groq / NVIDIA NIM for fast vision transcription and reasoning
+- **Security**: Cloudflare Turnstile for Captcha verification
 
-## Getting started
+## Getting Started
 
-1. Copy `.env.example` to `.env.local` and fill in the Supabase and model provider keys. `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are required for captcha inside the workspace. **Note:** You must also enable "Enable Captcha protection" in your Supabase Auth configuration (using Cloudflare Turnstile) and provide the Turnstile secret key there to secure the authentication endpoints. `CRON_SECRET` is a required environment variable in production, and keep-alive requests must use its value as the `Bearer` token.
-2. Install dependencies and run the dev server:
+1. Clone the repo and copy `.env.example` to `.env.local`.
+2. Fill in your Supabase and AI provider keys.
+   - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are required for the one-time Captcha.
+   - **Note:** Make sure to enable "Enable Captcha protection" in your Supabase Auth configuration (using Cloudflare Turnstile) to secure the endpoints.
+   - `CRON_SECRET` is required in production for keep-alive requests.
 
-   ```bash
-   pnpm install
-   pnpm dev
-   ```
+3. Install dependencies and start the dev server:
 
-3. Open [http://localhost:3000](http://localhost:3000).
+```bash
+pnpm install
+pnpm dev
+```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Database
 
-Schema and RLS policies live in `supabase/migrations/`. Push them to your Supabase project with:
+The database schema and RLS policies are located in `supabase/migrations/`. Push them to your Supabase project with:
 
 ```bash
 pnpm db:push
 ```
 
-## Scripts
+## Available Scripts
 
-- `pnpm dev` — start the dev server
-- `pnpm build` / `pnpm start` — production build and serve
-- `pnpm check` — typecheck, lint, and format-check
-- `pnpm fix` — lint and format-fix
-- `pnpm db:push` — push local Supabase migrations to the linked project
+- `pnpm dev` — Start the development server
+- `pnpm build` / `pnpm start` — Production build and serve
+- `pnpm check` — Typecheck, lint, and format-check
+- `pnpm fix` — Lint and auto-fix formatting
+- `pnpm db:push` — Push local Supabase migrations to your linked project
