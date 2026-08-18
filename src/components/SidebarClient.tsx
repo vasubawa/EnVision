@@ -52,7 +52,12 @@ export default function SidebarClient({
     if (isCreating) return
     setIsCreating(true)
     try {
-      const id = await createWorkspace()
+      const { data: id, error: createError } = await createWorkspace()
+
+      if (createError || !id) {
+        throw new Error(createError || 'Failed to create workspace')
+      }
+
       router.push(`/workspace/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create session')
