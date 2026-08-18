@@ -123,8 +123,11 @@ export function TutorChat({
     }
 
     try {
-      await requireCaptcha()
-      sendMessage({ text: input, metadata: { createdAt: Date.now() } }, { body: { canvasBase64 } })
+      const token = await requireCaptcha()
+      sendMessage(
+        { text: input, metadata: { createdAt: Date.now() } },
+        { body: { canvasBase64, captchaToken: token } },
+      )
       setInput('')
     } catch (_err) {
       // Captcha cancelled or failed
@@ -137,8 +140,9 @@ export function TutorChat({
     const canvasBase64 = getCanvasImage()
     if (!canvasBase64) return
 
+    let token: string
     try {
-      await requireCaptcha()
+      token = await requireCaptcha()
     } catch (_err) {
       return
     }
@@ -148,7 +152,7 @@ export function TutorChat({
       const res = await fetch('/api/analyze-work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canvasBase64, workspaceId }),
+        body: JSON.stringify({ canvasBase64, workspaceId, captchaToken: token }),
       })
 
       if (!res.ok) throw new Error('Analysis failed')
@@ -176,8 +180,9 @@ export function TutorChat({
     const canvasBase64 = getCanvasImage()
     if (!canvasBase64) return
 
+    let token: string
     try {
-      await requireCaptcha()
+      token = await requireCaptcha()
     } catch (_err) {
       return
     }
@@ -187,7 +192,7 @@ export function TutorChat({
       const res = await fetch('/api/analyze-work-deep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canvasBase64, workspaceId }),
+        body: JSON.stringify({ canvasBase64, workspaceId, captchaToken: token }),
       })
 
       if (!res.ok) throw new Error('Deep analysis failed')
