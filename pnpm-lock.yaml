@@ -25,8 +25,8 @@ importers:
         specifier: ^4.0.28
         version: 4.0.28(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.69
-        version: 4.0.69(react@19.2.8)(zod@4.4.3)
+        specifier: ^4.0.71
+        version: 4.0.71(react@19.2.8)(zod@4.4.3)
       '@marsidev/react-turnstile':
         specifier: ^1.6.0
         version: 1.6.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -163,8 +163,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/mcp@2.0.32':
-    resolution: {integrity: sha512-NkXUnIEUmOmjD42LGpXGdHPULYvAV4SYUojutqw5YVNmQA7g64YRv3NLOaST21b2vIScUAah4qWchi62iUpQdA==}
+  '@ai-sdk/mcp@2.0.33':
+    resolution: {integrity: sha512-fpzMLW1RNpRvHWf9Bj7IKgsBYhpPhpBemPARJzmE3g31WYJtKK+9X+WPDl2M+JQ8qL2b0Ltv8ikbSvXAvBmuJg==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -179,8 +179,8 @@ packages:
     resolution: {integrity: sha512-6or44XprPzKbr8zkmzosowSE0pxkvJcoojBL+mCZvPUt3kvXp3XSNqeVun9golb1acEfSo6yaEBRT18h2VU+1Q==}
     engines: {node: '>=22'}
 
-  '@ai-sdk/react@4.0.69':
-    resolution: {integrity: sha512-AvwDHRXg0md72BOzclcZzlCkjwT8xQefEaVX8e78WZgd0F635+7iWJyCRRq7x2z5zOCK7/wiEpAUoWpGobQyXg==}
+  '@ai-sdk/react@4.0.71':
+    resolution: {integrity: sha512-49xEp2fy8kqiA0imFPO+2ntZgbyOo2G9jgRmpPE0FTcwnM8YJV0o5sITM9nK/aMVAzo0TLB8L7fpmFZ1wbOffg==}
     engines: {node: '>=22'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
@@ -3469,7 +3469,7 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.27(zod@4.4.3)
       zod: 4.4.3
 
-  '@ai-sdk/mcp@2.0.32(zod@4.4.3)':
+  '@ai-sdk/mcp@2.0.33(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.7
       '@ai-sdk/provider-utils': 5.0.27(zod@4.4.3)
@@ -3489,12 +3489,12 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@4.0.69(react@19.2.8)(zod@4.4.3)':
+  '@ai-sdk/react@4.0.71(react@19.2.8)(zod@4.4.3)':
     dependencies:
-      '@ai-sdk/mcp': 2.0.32(zod@4.4.3)
+      '@ai-sdk/mcp': 2.0.33(zod@4.4.3)
       '@ai-sdk/provider': 4.0.7
       '@ai-sdk/provider-utils': 5.0.27(zod@4.4.3)
-      ai: 7.0.66(zod@4.4.3)
+      ai: 7.0.68(zod@4.4.3)
       react: 19.2.8
       swr: 2.5.1(react@19.2.8)
       throttleit: 2.1.0
