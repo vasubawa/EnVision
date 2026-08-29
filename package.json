@@ -16,7 +16,7 @@
     "@ai-sdk/react": "^4.0.71",
     "@marsidev/react-turnstile": "^1.6.0",
     "@supabase/ssr": "^0.12.4",
-    "@supabase/supabase-js": "^2.112.3",
+    "@supabase/supabase-js": "^2.112.4",
     "@types/katex": "^0.16.8",
     "ai": "^7.0.68",
     "fabric": "^7.4.0",
