@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console
-    console.error('analyze-work-deep error:', isTimeout ? 'TIMEOUT' : 'An internal error occurred.')
+    console.error('analyze-work-deep error:', error)
     return NextResponse.json(
       {
         error: isTimeout ? 'Analysis timed out. Please try again.' : 'An internal error occurred.',
