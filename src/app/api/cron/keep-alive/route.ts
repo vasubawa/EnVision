@@ -21,8 +21,26 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     // eslint-disable-next-line no-console
-    console.error('keep-alive ping failed:', error.message)
+    console.error('keep-alive ping failed (Supabase):', error.message)
     return NextResponse.json({ ok: false }, { status: 500 })
+  }
+
+  // Ping Upstash Redis to keep the free instance alive
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    try {
+      const upstashRes = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/keep-alive`, {
+        headers: {
+          Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
+        },
+      })
+      if (!upstashRes.ok) {
+        // eslint-disable-next-line no-console
+        console.error('keep-alive ping failed (Upstash): status', upstashRes.status)
+      }
+    } catch (upstashError) {
+      // eslint-disable-next-line no-console
+      console.error('keep-alive ping failed (Upstash):', upstashError)
+    }
   }
 
   return NextResponse.json({ ok: true })
