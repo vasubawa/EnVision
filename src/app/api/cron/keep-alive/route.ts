@@ -16,22 +16,32 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const supabase = createAdminClient()
-  const { error } = await supabase.from('profiles').select('id', { count: 'exact', head: true })
+  let supabaseFailed = false
 
-  if (error) {
+  try {
+    const supabase = createAdminClient()
+    const { error } = await supabase.from('profiles').select('id', { count: 'exact', head: true })
+    if (error) {
+      throw new Error(error.message)
+    }
+  } catch (err) {
+    supabaseFailed = true
+    const errorMessage = err instanceof Error ? err.message : String(err)
     // eslint-disable-next-line no-console
-    console.error('keep-alive ping failed (Supabase):', error.message)
-    return NextResponse.json({ ok: false }, { status: 500 })
+    console.error('keep-alive ping failed (Supabase):', errorMessage)
   }
 
   // Ping Upstash Redis to keep the free instance alive
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+
     try {
       const upstashRes = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/keep-alive`, {
         headers: {
           Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
         },
+        signal: controller.signal,
       })
       if (!upstashRes.ok) {
         // eslint-disable-next-line no-console
@@ -40,7 +50,13 @@ export async function GET(req: NextRequest) {
     } catch (upstashError) {
       // eslint-disable-next-line no-console
       console.error('keep-alive ping failed (Upstash):', upstashError)
+    } finally {
+      clearTimeout(timeoutId)
     }
+  }
+
+  if (supabaseFailed) {
+    return NextResponse.json({ ok: false }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
