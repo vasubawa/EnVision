@@ -2,49 +2,57 @@
 
 ![EnVision Landing Page](./public/landingpage.png)
 
-An AI-tutored whiteboard for physics, chemistry, and calculus. Upload a problem set, work it out by hand on the canvas, and get Socratic feedback as you go—instead of just being handed the answer.
+An AI-tutored whiteboard for STEM subjects — physics, chemistry, calculus, circuits, algorithms, and more. Upload a problem set or start with a blank canvas, work it out by hand, and get Socratic feedback as you go instead of just being handed the answer.
 
-You can jump straight in and use it anonymously, or sign in with a magic link to save your work.
+Jump straight in anonymously, or sign up to save your work and pick up where you left off.
 
 ## Features
 
-- **Instant Workspaces**: Start learning immediately. No account required to jump into a blank canvas or upload a document.
-- **Socratic AI Tutor**: Get hints and guidance on your work via chat. The AI checks your math and asks guiding questions.
-- **File Uploads**: Works with PDFs and images. You can also use the integrated camera to snap a picture of your homework.
-- **Privacy-first**: "Sign in to save work" approach. Anonymous sessions are protected by a one-time Captcha to keep bots out.
-- **Magic Link Auth**: Easy, passwordless sign-in when you're ready to save your progress.
+- **Instant Workspaces**: Start learning immediately — no account required. Drop in a PDF, image, or snap a photo of your homework with the built-in camera.
+- **Socratic AI Tutor**: Two analysis modes: a quick check and a deep analysis. The AI reads your whiteboard via vision, then asks guiding questions rather than giving answers. Full chat is also available.
+- **LaTeX Rendering**: All AI responses render math using KaTeX — inline and block expressions, fractions, integrals, chemistry notation, and more.
+- **Freehand Whiteboard**: Pen, eraser, shapes (rectangle, circle, line), text tool, color palette, undo/redo, grid toggle, and canvas download. Built on Fabric.js.
+- **File Uploads**: PDF and image support (PNG, JPG, WEBP). Pages are rendered onto the canvas via PDF.js.
+- **Privacy-first**: Anonymous sessions are created on first use, protected by a one-time Captcha. Sign up later to migrate all your workspaces to a permanent account.
+- **Email Auth**: Sign in or create an account with email and password. Anonymous workspaces are automatically migrated on sign-up.
 
 ## Tech Stack
 
-- **Framework**: Next.js (App Router) + Tailwind CSS
-- **Database & Auth**: Supabase (Postgres, Magic Links, Anonymous sessions)
+- **Framework**: Next.js (App Router) + Tailwind CSS v4
+- **Database & Auth**: Supabase (Postgres, anonymous sessions, email/password auth)
 - **Canvas**: Fabric.js for drawing, PDF.js for worksheet imports
-- **AI Models**: Groq / NVIDIA NIM for fast vision transcription and reasoning
+- **AI — Vision**: NVIDIA NIM (`nemotron-3-nano-omni` reasoning model) for whiteboard transcription
+- **AI — Reasoning**: Groq for Socratic feedback (quick check) and chat; NVIDIA NIM (`nemotron-3-super-120b`) for deep analysis and more indepth guidance.
+- **AI SDK**: Vercel AI SDK (`ai` + `@ai-sdk/groq`) for streaming chat
+- **Math Rendering**: KaTeX via `rehype-katex` + `remark-math`
 - **Security**: Cloudflare Turnstile for Captcha verification
 
 ## Getting Started
 
-1. Clone the repo and copy `.env.example` to `.env.local`.
-2. Fill in your Supabase and AI provider keys.
-   - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are required for the one-time Captcha.
-   - **Note:** Make sure to enable "Enable Captcha protection" in your Supabase Auth configuration (using Cloudflare Turnstile) to secure the endpoints.
+1. Clone the repo and copy `.env.example` to `.env.local`, then fill in all keys.
 
-3. Install dependencies and start the dev server:
+> **Note:** Make sure to enable **"Enable Captcha protection"** in your Supabase Auth configuration (using Cloudflare Turnstile) to secure the auth endpoints.
+
+2. Install dependencies and start the dev server:
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Database
 
-The database schema and RLS policies are located in `supabase/migrations/`. Push them to your Supabase project with:
+The database schema and RLS policies are in `supabase/migrations/`. Push them to your Supabase project with:
 
 ```bash
 pnpm db:push
 ```
+
+## Deployment
+
+The project is designed to deploy on Vercel. A `vercel.json` cron job hits `/api/cron/keep-alive` daily at 06:00 UTC to keep the free-tier Supabase project from going inactive. Set `CRON_SECRET` in your Vercel environment variables — Vercel passes it automatically as the `Authorization: Bearer` header when invoking the cron.
 
 ## Available Scripts
 
