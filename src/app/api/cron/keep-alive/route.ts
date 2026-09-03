@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 
 // Pinged daily by the Vercel cron in vercel.json so the Supabase project
-// (free tier) doesn't get auto-paused for inactivity.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   if (!secret && process.env.NODE_ENV === 'production') {
