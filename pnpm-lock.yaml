@@ -27,8 +27,8 @@ importers:
         specifier: ^0.16.8
         version: 0.16.8
       ai:
-        specifier: ^7.0.88
-        version: 7.0.88(zod@4.5.4)
+        specifier: ^7.0.90
+        version: 7.0.90(zod@4.5.4)
       fabric:
         specifier: ^7.4.0
         version: 7.4.0(supports-color@7.2.0)

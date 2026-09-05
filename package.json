@@ -18,7 +18,7 @@
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.113.0",
     "@types/katex": "^0.16.8",
-    "ai": "^7.0.88",
+    "ai": "^7.0.90",
     "fabric": "^7.4.0",
     "katex": "^0.18.5",
     "lucide-react": "^1.39.0",
