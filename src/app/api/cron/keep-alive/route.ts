@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const supabase = createAdminClient()
-    const { error } = await supabase.from('profiles').select('id', { count: 'exact', head: true })
+    const { error } = await supabase.from('profiles').select('id').limit(1)
     if (error) {
       throw new Error(error.message)
     }
