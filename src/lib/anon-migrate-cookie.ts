@@ -6,7 +6,6 @@ const COOKIE_NAME = 'anon_migrate'
 const MAX_AGE_MS = 10 * 60 * 1000
 
 function migrationSecret(): string {
-  // Prefer a dedicated secret when set; otherwise reuse keys already required in prod.
   return requireEnv(
     process.env.ANON_MIGRATE_SECRET ||
       process.env.CRON_SECRET ||
@@ -26,6 +25,20 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(left, right)
 }
 
+function parseMigrationCookie(raw: string): string | null {
+  const parts = raw.split('.')
+  if (parts.length !== 3) return null
+
+  const [anonymousUserId, expiresAtStr, signature] = parts
+  const payload = `${anonymousUserId}.${expiresAtStr}`
+  if (!safeEqual(sign(payload), signature)) return null
+
+  const expiresAt = Number(expiresAtStr)
+  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) return null
+
+  return anonymousUserId
+}
+
 /** Encode anonymous user id into an httpOnly cookie before password auth replaces the session. */
 export async function setAnonymousMigrationCookie(anonymousUserId: string): Promise<void> {
   const expiresAt = Date.now() + MAX_AGE_MS
@@ -41,23 +54,26 @@ export async function setAnonymousMigrationCookie(anonymousUserId: string): Prom
   })
 }
 
-/** Read + clear the migration cookie. Returns null if missing/invalid/expired. */
-export async function consumeAnonymousMigrationCookie(): Promise<string | null> {
+/**
+ * Read the migration cookie without clearing it.
+ * Clears only when the cookie is missing/invalid/expired (unusable).
+ */
+export async function readAnonymousMigrationCookie(): Promise<string | null> {
   const cookieStore = await cookies()
   const raw = cookieStore.get(COOKIE_NAME)?.value
-  cookieStore.delete(COOKIE_NAME)
-
   if (!raw) return null
 
-  const parts = raw.split('.')
-  if (parts.length !== 3) return null
-
-  const [anonymousUserId, expiresAtStr, signature] = parts
-  const payload = `${anonymousUserId}.${expiresAtStr}`
-  if (!safeEqual(sign(payload), signature)) return null
-
-  const expiresAt = Number(expiresAtStr)
-  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) return null
+  const anonymousUserId = parseMigrationCookie(raw)
+  if (!anonymousUserId) {
+    cookieStore.delete(COOKIE_NAME)
+    return null
+  }
 
   return anonymousUserId
+}
+
+/** Clear the migration cookie after a successful migrate. */
+export async function clearAnonymousMigrationCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.delete(COOKIE_NAME)
 }

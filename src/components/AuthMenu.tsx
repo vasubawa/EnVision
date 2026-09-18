@@ -59,7 +59,11 @@ export function AuthMenu({
         return
       }
 
-      await prepareAnonymousMigration()
+      const prepared = await prepareAnonymousMigration()
+      if (!prepared.ok) {
+        toast.error(prepared.error)
+        return
+      }
 
       let authError = null
 

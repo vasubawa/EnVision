@@ -32,7 +32,11 @@ export default function LoginPage() {
     }
 
     try {
-      await prepareAnonymousMigration()
+      const prepared = await prepareAnonymousMigration()
+      if (!prepared.ok) {
+        toast.error(prepared.error)
+        return
+      }
 
       let authError = null
 

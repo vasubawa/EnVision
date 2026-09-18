@@ -9,6 +9,7 @@
     "check": "tsc --noEmit && eslint . && prettier --check .",
     "fix": "eslint --fix . && prettier --write .",
     "prepare": "husky",
+    "postinstall": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\"",
     "db:push": "supabase db push"
   },
   "dependencies": {

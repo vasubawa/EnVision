@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { migrateAnonymousWorkspaces } from '@/lib/migrate-anonymous-workspaces'
-import { consumeAnonymousMigrationCookie } from '@/lib/anon-migrate-cookie'
+import {
+  readAnonymousMigrationCookie,
+  clearAnonymousMigrationCookie,
+} from '@/lib/anon-migrate-cookie'
 
 function safeNextPath(rawNext: string | null, origin: string): string {
   if (!rawNext) return '/workspace'
@@ -38,16 +41,22 @@ export async function GET(request: Request) {
         if (migrationResult.error) {
           return NextResponse.redirect(`${origin}/login?error=Failed+to+migrate+workspaces`)
         }
+        try {
+          await clearAnonymousMigrationCookie()
+        } catch {
+          // best-effort
+        }
       } else if (!newUser.is_anonymous) {
         // Password sign-up email confirm (or OAuth without prior anon session):
         // honor the signed cookie from prepareAnonymousMigration.
         try {
-          const oldUserId = await consumeAnonymousMigrationCookie()
+          const oldUserId = await readAnonymousMigrationCookie()
           if (oldUserId && oldUserId !== newUser.id) {
             const migrationResult = await migrateAnonymousWorkspaces(oldUserId, newUser.id)
             if (migrationResult.error) {
               return NextResponse.redirect(`${origin}/login?error=Failed+to+migrate+workspaces`)
             }
+            await clearAnonymousMigrationCookie()
           }
         } catch (err) {
           // eslint-disable-next-line no-console
