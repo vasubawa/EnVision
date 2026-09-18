@@ -9,6 +9,7 @@ import { Loader2, X, Settings, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useCaptcha } from '@/components/CaptchaModal'
+import { prepareAnonymousMigration, completeAnonymousMigration } from '@/app/actions/workspace'
 
 export function AuthMenu({
   mode = 'landing',
@@ -58,6 +59,12 @@ export function AuthMenu({
         return
       }
 
+      const prepared = await prepareAnonymousMigration()
+      if (!prepared.ok) {
+        toast.error(prepared.error)
+        return
+      }
+
       let authError = null
 
       if (isSignUp) {
@@ -83,7 +90,12 @@ export function AuthMenu({
       if (authError) {
         toast.error(authError.message)
       } else {
-        toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
+        const migration = await completeAnonymousMigration()
+        if (migration.error) {
+          toast.error(migration.error)
+        } else {
+          toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
+        }
         setIsModalOpen(false)
         setPassword('')
       }

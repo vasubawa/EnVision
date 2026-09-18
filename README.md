@@ -52,7 +52,27 @@ pnpm db:push
 
 ## Deployment
 
-The project is designed to deploy on Vercel. A `vercel.json` cron job hits `/api/cron/keep-alive` daily at 06:00 UTC to keep the free-tier Supabase project from going inactive. Set `CRON_SECRET` in your Vercel environment variables — Vercel passes it automatically as the `Authorization: Bearer` header when invoking the cron.
+The project is designed to deploy on Vercel.
+
+### Keep-alive (Supabase free tier)
+
+Free Supabase projects can pause after ~7 days of low database activity. Two Vercel Cron jobs (Hobby allows 2/day) hit `GET /api/cron/keep-alive` at **06:00** and **18:00** UTC. Each run calls `run_keep_alive()`, which:
+
+1. Increments `keep_alive_counter` (write)
+2. Inserts a row into `keep_alive_pings` (write)
+3. Prunes old ping rows (delete)
+4. Counts rows in `profiles`, `workspaces`, and `messages` (reads)
+5. Optionally pings Upstash Redis if configured
+
+**Vercel:** set `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Production. Vercel sends `Authorization: Bearer <CRON_SECRET>` on cron invocations. Success looks like `{ "ok": true, "supabase": { "ok": true, "result": { "pingCount": N, ... } } }`.
+
+If the project is already paused, restore it in the Supabase dashboard first; keep-alive cannot unpause a project.
+
+After pulling schema changes, push migrations:
+
+```bash
+pnpm db:push
+```
 
 ## Available Scripts
 

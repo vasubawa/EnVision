@@ -22,6 +22,8 @@ const TOAST_IDS = {
   EXTRACT: 'extract-toast',
 }
 
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
 export function UploadDropzone() {
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -39,6 +41,19 @@ export function UploadDropzone() {
       'application/pdf': ['.pdf'],
     },
     maxFiles: 1,
+    maxSize: MAX_UPLOAD_BYTES,
+    onDropRejected: (rejections) => {
+      const codes = new Set(rejections.flatMap((r) => r.errors.map((e) => e.code)))
+      if (codes.has('too-many-files')) {
+        toast.error('Please select only one file')
+        return
+      }
+      if (codes.has('file-too-large')) {
+        toast.error('File must be 10MB or smaller')
+        return
+      }
+      toast.error('File type not supported')
+    },
   })
 
   const router = useRouter()
@@ -194,6 +209,10 @@ export function UploadDropzone() {
         isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}
         onCapture={(capturedFile) => {
+          if (capturedFile.size > MAX_UPLOAD_BYTES) {
+            toast.error('File must be 10MB or smaller')
+            return
+          }
           setFile(capturedFile)
           setIsCameraOpen(false)
         }}
