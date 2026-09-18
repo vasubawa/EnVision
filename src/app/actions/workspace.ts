@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { verifyTurnstileToken } from '@/lib/turnstile'
 import {
   setAnonymousMigrationCookie,
-  consumeAnonymousMigrationCookie,
+  readAnonymousMigrationCookie,
+  clearAnonymousMigrationCookie,
 } from '@/lib/anon-migrate-cookie'
 import { migrateAnonymousWorkspaces } from '@/lib/migrate-anonymous-workspaces'
 
@@ -92,7 +93,9 @@ export async function deleteWorkspace(id: string) {
  * Call while still on the anonymous session, before password sign-in/up.
  * Stashes a signed cookie so we can migrate after the session is replaced.
  */
-export async function prepareAnonymousMigration(): Promise<{ ok: true; error?: string }> {
+export async function prepareAnonymousMigration(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -107,7 +110,7 @@ export async function prepareAnonymousMigration(): Promise<{ ok: true; error?: s
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Failed to prepare anonymous migration:', err)
-    return { ok: true, error: 'Failed to prepare workspace migration' }
+    return { ok: false, error: 'Failed to prepare workspace migration' }
   }
 
   return { ok: true }
@@ -134,7 +137,7 @@ export async function completeAnonymousMigration(): Promise<{
 
   let oldUserId: string | null
   try {
-    oldUserId = await consumeAnonymousMigrationCookie()
+    oldUserId = await readAnonymousMigrationCookie()
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Failed to read anonymous migration cookie:', err)
@@ -145,5 +148,18 @@ export async function completeAnonymousMigration(): Promise<{
     return { success: true }
   }
 
-  return migrateAnonymousWorkspaces(oldUserId, user.id)
+  const result = await migrateAnonymousWorkspaces(oldUserId, user.id)
+  if (result.error) {
+    return result
+  }
+
+  try {
+    await clearAnonymousMigrationCookie()
+  } catch (err) {
+    // Migration succeeded; cookie clear is best-effort.
+    // eslint-disable-next-line no-console
+    console.error('Failed to clear anonymous migration cookie:', err)
+  }
+
+  return { success: true }
 }

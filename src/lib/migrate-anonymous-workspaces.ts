@@ -1,4 +1,100 @@
 import { createAdminClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+type WorkspaceRow = {
+  id: string
+  canvas_snapshot_path: string | null
+}
+
+function isStorageNotFound(error: { message?: string; statusCode?: string } | null): boolean {
+  if (!error) return true
+  const status = String(error.statusCode ?? '')
+  const msg = (error.message ?? '').toLowerCase()
+  return status === '404' || msg.includes('not found') || msg.includes('object not found')
+}
+
+async function migrateOneWorkspace(
+  admin: SupabaseClient,
+  workspace: WorkspaceRow,
+  oldUserId: string,
+  newUserId: string,
+): Promise<{ error?: string }> {
+  const oldPath = workspace.canvas_snapshot_path ?? `${oldUserId}/${workspace.id}/snapshot.json`
+  const newPath = `${newUserId}/${workspace.id}/snapshot.json`
+
+  const { data: file, error: downloadError } = await admin.storage
+    .from('workspace-snapshots')
+    .download(oldPath)
+
+  if (downloadError || !file) {
+    if (!isStorageNotFound(downloadError)) {
+      return {
+        error: downloadError?.message || 'Failed to download canvas snapshot',
+      }
+    }
+
+    // Confirmed missing — reassign and clear a stale path if present.
+    if (workspace.canvas_snapshot_path) {
+      const { error: clearPathError } = await admin
+        .from('workspaces')
+        .update({
+          user_id: newUserId,
+          canvas_snapshot_path: null,
+        })
+        .eq('id', workspace.id)
+        .eq('user_id', oldUserId)
+
+      if (clearPathError) {
+        return { error: clearPathError.message }
+      }
+    } else {
+      const { error: reassignError } = await admin
+        .from('workspaces')
+        .update({ user_id: newUserId })
+        .eq('id', workspace.id)
+        .eq('user_id', oldUserId)
+
+      if (reassignError) {
+        return { error: reassignError.message }
+      }
+    }
+    return {}
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer())
+  const { error: uploadError } = await admin.storage
+    .from('workspace-snapshots')
+    .upload(newPath, bytes, { upsert: true, contentType: 'application/json' })
+
+  if (uploadError) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to upload migrated snapshot:', uploadError)
+    return { error: 'Failed to migrate canvas snapshot' }
+  }
+
+  const { error: updateError } = await admin
+    .from('workspaces')
+    .update({
+      user_id: newUserId,
+      canvas_snapshot_path: newPath,
+    })
+    .eq('id', workspace.id)
+    .eq('user_id', oldUserId)
+
+  if (updateError) {
+    return { error: updateError.message }
+  }
+
+  const { error: removeError } = await admin.storage.from('workspace-snapshots').remove([oldPath])
+
+  if (removeError) {
+    // Non-fatal: new path is authoritative; log and continue.
+    // eslint-disable-next-line no-console
+    console.error('Failed to remove old snapshot after migrate:', removeError)
+  }
+
+  return {}
+}
 
 /**
  * Move workspaces (+ canvas snapshots) from an anonymous user to a permanent
@@ -33,83 +129,27 @@ export async function migrateAnonymousWorkspaces(
   }
 
   for (const workspace of workspaces ?? []) {
-    const oldPath = workspace.canvas_snapshot_path ?? `${oldUserId}/${workspace.id}/snapshot.json`
-    const newPath = `${newUserId}/${workspace.id}/snapshot.json`
-
-    const { data: file, error: downloadError } = await admin.storage
-      .from('workspace-snapshots')
-      .download(oldPath)
-
-    if (downloadError || !file) {
-      // No snapshot on disk — still reassign the row below; clear a stale path.
-      if (workspace.canvas_snapshot_path) {
-        const { error: clearPathError } = await admin
-          .from('workspaces')
-          .update({
-            user_id: newUserId,
-            canvas_snapshot_path: null,
-          })
-          .eq('id', workspace.id)
-          .eq('user_id', oldUserId)
-
-        if (clearPathError) {
-          return { error: clearPathError.message }
-        }
-      } else {
-        const { error: reassignError } = await admin
-          .from('workspaces')
-          .update({ user_id: newUserId })
-          .eq('id', workspace.id)
-          .eq('user_id', oldUserId)
-
-        if (reassignError) {
-          return { error: reassignError.message }
-        }
-      }
-      continue
-    }
-
-    const bytes = Buffer.from(await file.arrayBuffer())
-    const { error: uploadError } = await admin.storage
-      .from('workspace-snapshots')
-      .upload(newPath, bytes, { upsert: true, contentType: 'application/json' })
-
-    if (uploadError) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to upload migrated snapshot:', uploadError)
-      return { error: 'Failed to migrate canvas snapshot' }
-    }
-
-    const { error: updateError } = await admin
-      .from('workspaces')
-      .update({
-        user_id: newUserId,
-        canvas_snapshot_path: newPath,
-      })
-      .eq('id', workspace.id)
-      .eq('user_id', oldUserId)
-
-    if (updateError) {
-      return { error: updateError.message }
-    }
-
-    const { error: removeError } = await admin.storage.from('workspace-snapshots').remove([oldPath])
-
-    if (removeError) {
-      // Non-fatal: new path is authoritative; log and continue.
-      // eslint-disable-next-line no-console
-      console.error('Failed to remove old snapshot after migrate:', removeError)
+    const result = await migrateOneWorkspace(admin, workspace, oldUserId, newUserId)
+    if (result.error) {
+      return { error: result.error }
     }
   }
 
-  // Catch any workspaces that had no snapshot loop updates (empty list is fine).
-  const { error: leftoverError } = await admin
+  // Re-query leftovers (e.g. rows inserted during migration) and migrate fully.
+  const { data: leftovers, error: leftoverListError } = await admin
     .from('workspaces')
-    .update({ user_id: newUserId })
+    .select('id, canvas_snapshot_path')
     .eq('user_id', oldUserId)
 
-  if (leftoverError) {
-    return { error: leftoverError.message }
+  if (leftoverListError) {
+    return { error: leftoverListError.message }
+  }
+
+  for (const workspace of leftovers ?? []) {
+    const result = await migrateOneWorkspace(admin, workspace, oldUserId, newUserId)
+    if (result.error) {
+      return { error: result.error }
+    }
   }
 
   return { success: true }

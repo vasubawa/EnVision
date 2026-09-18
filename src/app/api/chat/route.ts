@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { streamText, convertToModelMessages, type UIMessage } from 'ai'
 import { createGroq } from '@ai-sdk/groq'
+import { z } from 'zod'
 import { MODELS, apiKey, stripThinking } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
@@ -10,6 +11,28 @@ export const maxDuration = 60
 
 const MAX_MESSAGES = 40
 const MAX_MESSAGE_CHARS = 8_000
+
+const uiMessageSchema = z
+  .object({
+    id: z.string().optional(),
+    role: z.enum(['system', 'user', 'assistant']),
+    parts: z
+      .array(
+        z
+          .object({
+            type: z.string(),
+            text: z.string().optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
+  })
+  .passthrough()
+
+const chatBodySchema = z.object({
+  messages: z.array(uiMessageSchema).min(1).max(MAX_MESSAGES),
+  canvasBase64: z.string().optional(),
+})
 
 function getMessageText(message: UIMessage): string {
   if (message.parts) {
@@ -35,17 +58,15 @@ export async function POST(req: NextRequest) {
     const access = await requireWorkspaceOwner(workspaceId)
     if ('error' in access) return access.error
 
-    const { messages, canvasBase64 }: { messages: UIMessage[]; canvasBase64?: string } =
-      await req.json()
-
-    if (!Array.isArray(messages) || messages.length === 0) {
+    const rawBody: unknown = await req.json()
+    const parsed = chatBodySchema.safeParse(rawBody)
+    if (!parsed.success) {
       return new Response(JSON.stringify({ error: 'Messages are required.' }), { status: 400 })
     }
 
-    if (messages.length > MAX_MESSAGES) {
-      return new Response(JSON.stringify({ error: `Too many messages (max ${MAX_MESSAGES}).` }), {
-        status: 400,
-      })
+    const { messages, canvasBase64 } = parsed.data as {
+      messages: UIMessage[]
+      canvasBase64?: string
     }
 
     for (const message of messages) {
