@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { requireEnv } from '@/lib/env'
 
@@ -30,17 +31,15 @@ export async function createClient() {
 }
 
 export function createAdminClient() {
-  return createServerClient(
+  // Prefer the plain JS client for service-role / cron / server-action admin
+  // work — no cookie jar needed, and it is more reliable outside request UX.
+  return createSupabaseClient(
     requireEnv(process.env.NEXT_PUBLIC_SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL'),
     requireEnv(process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY'),
     {
-      cookies: {
-        getAll() {
-          return []
-        },
-        setAll() {
-          // not required for admin
-        },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     },
   )

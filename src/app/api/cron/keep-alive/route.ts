@@ -1,36 +1,46 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 
-// Pinged daily by the Vercel cron in vercel.json so the Supabase project
+/**
+ * Heartbeat for free-tier Supabase (and optional Upstash).
+ * Vercel Cron hits this twice daily; each run calls run_keep_alive() which
+ * writes a counter + ping log, prunes old pings, and SELECTs app tables.
+ */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
-  if (!secret && process.env.NODE_ENV === 'production') {
+  const authHeader = req.headers.get('authorization')
+
+  if (process.env.NODE_ENV === 'production') {
+    if (!secret || authHeader !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  } else if (secret && authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (secret) {
-    const authHeader = req.headers.get('authorization')
-    if (authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-  }
-
-  let supabaseFailed = false
+  let supabaseOk = false
+  let supabaseError: string | undefined
+  let supabaseResult: unknown
 
   try {
     const supabase = createAdminClient()
-    const { error } = await supabase.from('profiles').select('id').limit(1)
+    const { data, error } = await supabase.rpc('run_keep_alive', {
+      p_source: 'vercel-cron',
+    })
     if (error) {
       throw new Error(error.message)
     }
+    supabaseResult = data
+    supabaseOk = true
   } catch (err) {
-    supabaseFailed = true
-    const errorMessage = err instanceof Error ? err.message : String(err)
+    supabaseError = err instanceof Error ? err.message : String(err)
     // eslint-disable-next-line no-console
-    console.error('keep-alive ping failed (Supabase):', errorMessage)
+    console.error('keep-alive ping failed (Supabase):', supabaseError)
   }
 
-  // Ping Upstash Redis to keep the free instance alive
+  let upstashOk: boolean | undefined
+  let upstashError: string | undefined
+
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
@@ -43,10 +53,16 @@ export async function GET(req: NextRequest) {
         signal: controller.signal,
       })
       if (!upstashRes.ok) {
+        upstashOk = false
+        upstashError = `status ${upstashRes.status}`
         // eslint-disable-next-line no-console
-        console.error('keep-alive ping failed (Upstash): status', upstashRes.status)
+        console.error('keep-alive ping failed (Upstash):', upstashError)
+      } else {
+        upstashOk = true
       }
-    } catch (upstashError) {
+    } catch (err) {
+      upstashOk = false
+      upstashError = err instanceof Error ? err.message : String(err)
       // eslint-disable-next-line no-console
       console.error('keep-alive ping failed (Upstash):', upstashError)
     } finally {
@@ -54,9 +70,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  if (supabaseFailed) {
-    return NextResponse.json({ ok: false }, { status: 500 })
+  if (!supabaseOk) {
+    return NextResponse.json(
+      {
+        ok: false,
+        supabase: { ok: false, error: supabaseError },
+        upstash: { ok: upstashOk, error: upstashError },
+      },
+      { status: 500 },
+    )
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({
+    ok: true,
+    supabase: { ok: true, result: supabaseResult },
+    upstash: upstashOk === undefined ? undefined : { ok: upstashOk, error: upstashError },
+  })
 }

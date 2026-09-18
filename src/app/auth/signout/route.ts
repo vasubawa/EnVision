@@ -12,5 +12,6 @@ export async function POST(request: Request) {
     await supabase.auth.signOut()
   }
 
-  return NextResponse.redirect(new URL('/', request.url))
+  // 303 so browsers switch POST → GET on the landing page
+  return NextResponse.redirect(new URL('/', request.url), 303)
 }

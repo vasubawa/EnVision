@@ -2,9 +2,10 @@ import { NextResponse, NextRequest } from 'next/server'
 import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
+import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
 import { type Feedback, isFeedbackShape } from '@/types/feedback'
 
-export const maxDuration = 60
+export const maxDuration = 90
 
 export async function POST(req: NextRequest) {
   const { allowed, retryAfterSeconds } = rateLimit(req, { limit: 5, windowMs: 60_000 })
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const { canvasBase64, workspaceId } = await req.json()
+
+    const access = await requireWorkspaceOwner(workspaceId)
+    if ('error' in access) return access.error
 
     if (!isValidCanvasImage(canvasBase64)) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
@@ -146,35 +150,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Save to database if workspaceId is provided
+    // Save feedback — ownership already verified above
     let savedId = undefined
 
-    if (workspaceId && parsedResult) {
-      const { createClient } = await import('@/lib/supabase/server')
-      const supabase = await createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-
-      // Verify user owns the workspace
-      const { data: workspace } = await supabase
-        .from('workspaces')
-        .select('user_id')
-        .eq('id', workspaceId)
-        .single()
-
-      if (!workspace || workspace.user_id !== user.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-
-      const { data, error: insertError } = await supabase
+    if (parsedResult) {
+      const { data, error: insertError } = await access.supabase
         .from('messages')
         .insert({
-          workspace_id: workspaceId,
+          workspace_id: access.workspaceId,
           role: 'assistant',
           kind: 'feedback',
           content: parsedResult.suggestion,

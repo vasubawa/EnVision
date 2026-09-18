@@ -7,7 +7,7 @@ import * as fabric from 'fabric'
 import * as pdfjsLib from 'pdfjs-dist'
 import { Toolbar, DrawingMode, BrushColor, BrushSize } from './Toolbar'
 
-// Set up PDF.js worker
+// Same-origin worker from /public (copied from pdfjs-dist; must match installed version).
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 }

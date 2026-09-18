@@ -1,7 +1,13 @@
 'use server'
 
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { verifyTurnstileToken } from '@/lib/turnstile'
+import {
+  setAnonymousMigrationCookie,
+  readAnonymousMigrationCookie,
+  clearAnonymousMigrationCookie,
+} from '@/lib/anon-migrate-cookie'
+import { migrateAnonymousWorkspaces } from '@/lib/migrate-anonymous-workspaces'
 
 export async function createWorkspace(
   captchaToken?: string,
@@ -83,17 +89,76 @@ export async function deleteWorkspace(id: string) {
   }
 }
 
-export async function migrateAnonymousWorkspacesHelper(oldUserId: string, newUserId: string) {
-  const admin = createAdminClient()
-  const { error: updateError } = await admin
-    .from('workspaces')
-    .update({ user_id: newUserId })
-    .eq('user_id', oldUserId)
+/**
+ * Call while still on the anonymous session, before password sign-in/up.
+ * Stashes a signed cookie so we can migrate after the session is replaced.
+ */
+export async function prepareAnonymousMigration(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (updateError) {
+  if (!user?.is_anonymous) {
+    return { ok: true }
+  }
+
+  try {
+    await setAnonymousMigrationCookie(user.id)
+  } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('Failed to migrate workspaces:', updateError)
-    return { error: 'Failed to migrate workspaces: ' + updateError.message }
+    console.error('Failed to prepare anonymous migration:', err)
+    return { ok: false, error: 'Failed to prepare workspace migration' }
+  }
+
+  return { ok: true }
+}
+
+/**
+ * Call after a successful password sign-in/up. Migrates workspaces from the
+ * anonymous user recorded by prepareAnonymousMigration.
+ */
+export async function completeAnonymousMigration(): Promise<{
+  success?: true
+  error?: string
+}> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Email confirmation may leave the anon session in place — keep the cookie
+  // for /auth/callback and don't treat that as failure.
+  if (!user || user.is_anonymous) {
+    return { success: true }
+  }
+
+  let oldUserId: string | null
+  try {
+    oldUserId = await readAnonymousMigrationCookie()
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to read anonymous migration cookie:', err)
+    return { error: 'Failed to migrate workspaces' }
+  }
+
+  if (!oldUserId || oldUserId === user.id) {
+    return { success: true }
+  }
+
+  const result = await migrateAnonymousWorkspaces(oldUserId, user.id)
+  if (result.error) {
+    return result
+  }
+
+  try {
+    await clearAnonymousMigrationCookie()
+  } catch (err) {
+    // Migration succeeded; cookie clear is best-effort.
+    // eslint-disable-next-line no-console
+    console.error('Failed to clear anonymous migration cookie:', err)
   }
 
   return { success: true }
