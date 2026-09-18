@@ -21,7 +21,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 10.5.0
+          version: 10.15.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -31,6 +31,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: '0'
 
       - name: Run checks
         run: pnpm check
@@ -44,3 +46,6 @@ jobs:
           GROQ_API_KEY: placeholder
           OPENROUTER_API_KEY: placeholder
           NVIDIA_NIM_API_KEY: placeholder
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: placeholder
+          TURNSTILE_SECRET_KEY: placeholder
+          CRON_SECRET: placeholder-cron-secret
