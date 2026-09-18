@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.41",
-    "@ai-sdk/react": "^4.0.96",
+    "@ai-sdk/react": "^4.0.104",
     "@marsidev/react-turnstile": "^1.6.1",
     "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.116.0",
