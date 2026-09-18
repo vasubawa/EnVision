@@ -7,9 +7,9 @@ import * as fabric from 'fabric'
 import * as pdfjsLib from 'pdfjs-dist'
 import { Toolbar, DrawingMode, BrushColor, BrushSize } from './Toolbar'
 
-// Set up PDF.js worker
+// Pin worker to the installed pdfjs-dist version (avoids shipping a copied asset).
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
 }
 
 export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?: string | null }) {

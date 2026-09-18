@@ -4,18 +4,21 @@ import { createGroq } from '@ai-sdk/groq'
 import { MODELS, apiKey, stripThinking } from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
+import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
 
 export const maxDuration = 60
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getMessageText(message: any): string {
+const MAX_MESSAGES = 40
+const MAX_MESSAGE_CHARS = 8_000
+
+function getMessageText(message: UIMessage): string {
   if (message.parts) {
     return message.parts
-      .filter((part: unknown) => (part as { type: string }).type === 'text')
-      .map((part: unknown) => (part as { text: string }).text)
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map((part) => part.text)
       .join('')
   }
-  return message.content || ''
+  return ''
 }
 
 export async function POST(req: NextRequest) {
@@ -28,8 +31,28 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const workspaceId = req.nextUrl.searchParams.get('workspaceId')
+    const access = await requireWorkspaceOwner(workspaceId)
+    if ('error' in access) return access.error
+
     const { messages, canvasBase64 }: { messages: UIMessage[]; canvasBase64?: string } =
       await req.json()
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: 'Messages are required.' }), { status: 400 })
+    }
+
+    if (messages.length > MAX_MESSAGES) {
+      return new Response(JSON.stringify({ error: `Too many messages (max ${MAX_MESSAGES}).` }), {
+        status: 400,
+      })
+    }
+
+    for (const message of messages) {
+      if (getMessageText(message).length > MAX_MESSAGE_CHARS) {
+        return new Response(JSON.stringify({ error: 'Message too long.' }), { status: 400 })
+      }
+    }
 
     if (canvasBase64 && !isValidCanvasImage(canvasBase64)) {
       return new Response(JSON.stringify({ error: 'Invalid canvas image.' }), { status: 400 })
@@ -97,46 +120,21 @@ export async function POST(req: NextRequest) {
       baseURL: MODELS.reasoning.apiBase,
     })
 
-    const workspaceId = req.nextUrl.searchParams.get('workspaceId')
+    // Optimistically save the user message
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage.role === 'user') {
+      const { error: insertError } = await access.supabase.from('messages').insert({
+        id: lastMessage.id,
+        workspace_id: access.workspaceId,
+        role: 'user',
+        kind: 'chat',
+        content: getMessageText(lastMessage),
+      })
 
-    // Optimistically save the user message to the DB if we have a workspaceId
-    if (workspaceId && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1]
-      if (lastMessage.role === 'user') {
-        const { createClient } = await import('@/lib/supabase/server')
-        const supabase = await createClient()
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (!user) {
-          return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-        }
-
-        // Verify user owns the workspace
-        const { data: workspace } = await supabase
-          .from('workspaces')
-          .select('user_id')
-          .eq('id', workspaceId)
-          .single()
-
-        if (!workspace || workspace.user_id !== user.id) {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 })
-        }
-
-        const { error: insertError } = await supabase.from('messages').insert({
-          id: lastMessage.id,
-          workspace_id: workspaceId,
-          role: 'user',
-          kind: 'chat',
-          content: getMessageText(lastMessage),
-        })
-
-        if (insertError) {
-          // eslint-disable-next-line no-console
-          console.error('Failed to save user message:', insertError)
-          return new Response(JSON.stringify({ error: 'Failed to save message' }), { status: 500 })
-        }
+      if (insertError) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to save user message:', insertError)
+        return new Response(JSON.stringify({ error: 'Failed to save message' }), { status: 500 })
       }
     }
 
@@ -145,20 +143,16 @@ export async function POST(req: NextRequest) {
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
       onFinish: async ({ text }) => {
-        if (workspaceId) {
-          const { createClient } = await import('@/lib/supabase/server')
-          const supabase = await createClient()
-          const { error: insertError } = await supabase.from('messages').insert({
-            workspace_id: workspaceId,
-            role: 'assistant',
-            kind: 'chat',
-            content: text,
-          })
+        const { error: insertError } = await access.supabase.from('messages').insert({
+          workspace_id: access.workspaceId,
+          role: 'assistant',
+          kind: 'chat',
+          content: text,
+        })
 
-          if (insertError) {
-            // eslint-disable-next-line no-console
-            console.error('Failed to persist assistant message:', insertError)
-          }
+        if (insertError) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to persist assistant message:', insertError)
         }
       },
     })

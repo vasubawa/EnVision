@@ -39,6 +39,11 @@ export function UploadDropzone() {
       'application/pdf': ['.pdf'],
     },
     maxFiles: 1,
+    maxSize: 10 * 1024 * 1024,
+    onDropRejected: (rejections) => {
+      const tooLarge = rejections.some((r) => r.errors.some((e) => e.code === 'file-too-large'))
+      toast.error(tooLarge ? 'File must be 10MB or smaller' : 'File type not supported')
+    },
   })
 
   const router = useRouter()

@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useCaptcha } from '@/components/CaptchaModal'
+import { prepareAnonymousMigration, completeAnonymousMigration } from '@/app/actions/workspace'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -31,6 +32,8 @@ export default function LoginPage() {
     }
 
     try {
+      await prepareAnonymousMigration()
+
       let authError = null
 
       if (isSignUp) {
@@ -56,7 +59,12 @@ export default function LoginPage() {
       if (authError) {
         toast.error(authError.message)
       } else {
-        toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
+        const migration = await completeAnonymousMigration()
+        if (migration.error) {
+          toast.error(migration.error)
+        } else {
+          toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
+        }
         if (!isSignUp) {
           router.push('/workspaces')
         }
