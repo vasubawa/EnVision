@@ -31,8 +31,8 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@supabase/ssr':
-        specifier: ^0.12.6
-        version: 0.12.6(@supabase/supabase-js@2.117.1(@opentelemetry/api@1.9.0))
+        specifier: ^0.12.7
+        version: 0.12.7(@supabase/supabase-js@2.117.1(@opentelemetry/api@1.9.0))
       '@supabase/supabase-js':
         specifier: ^2.117.1
         version: 2.117.1(@opentelemetry/api@1.9.0)
@@ -67,8 +67,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
       react-dropzone:
-        specifier: ^20.1.1
-        version: 20.1.1(@types/react@19.3.0)(react@19.3.0)
+        specifier: ^20.1.2
+        version: 20.1.2(@types/react@19.3.0)(react@19.3.0)
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.3.0)(react@19.3.0)
@@ -119,8 +119,8 @@ importers:
         specifier: ^9.1.7
         version: 9.1.7
       lint-staged:
-        specifier: ^17.5.0
-        version: 17.5.0
+        specifier: ^17.5.1
+        version: 17.5.1
       npm-run-all2:
         specifier: ^9.0.3
         version: 9.0.3
@@ -145,12 +145,6 @@ importers:
 
 packages:
 
-  '@ai-sdk/gateway@4.0.82':
-    resolution: {integrity: sha512-WbRChvbJY2zf0qBxFu6UENi0p69fPzP7lKViNTIp3gr76w9bLUFvV5fTXS5uGPqDOkzlTIuAkqWxYNayEBSn6Q==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   '@ai-sdk/gateway@4.0.90':
     resolution: {integrity: sha512-mtmiicpMapQU8K0ynNXCRcO55GVyBv6kjbwsD15RMxJKZUUPR99HfQ7/BsdRLdjSQcL7YcCauMLbguw6J+JFjQ==}
     engines: {node: '>=22'}
@@ -169,21 +163,11 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.41':
-    resolution: {integrity: sha512-hSosMII5k33z0buaZ6dugH/g8yIJjPQBILuQvr4ThdiMJxrkiZxFWTgIkvKsT6Dk493JbsnGz5W/q88Y5bR7WA==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   '@ai-sdk/provider-utils@5.0.46':
     resolution: {integrity: sha512-XYpiJbd3jW12HC4yzqNmUuPbZ7ooKXVxQjnXCC3O/VzzV2OvRWD6lDFUYYPLs/ZJgTcWWUkmHL/vIyvnxyplVA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/provider@4.0.15':
-    resolution: {integrity: sha512-LIDCrT8xgWVMiVUV13+v9FXPJ8B5uX/5ByEMXxp9Sspr2SyB1PwMSCPshZoI/t+4AgxyZCFEVutdaigCnqje3w==}
-    engines: {node: '>=22'}
 
   '@ai-sdk/provider@4.0.18':
     resolution: {integrity: sha512-+GZJIgz1jk86pwEbb3f1BD2bdoSKyWE4Jg4YUc7NMnMozbWemSKYZcw2F4nMaO5qwsL5A8RmioAKW81YktRpIQ==}
@@ -868,8 +852,8 @@ packages:
     resolution: {integrity: sha512-GkbZfeh5F5aqnUhG1chrdaVQmnRK8ZUL8H16Km/eVVsX99x0w2AijfxjONCB9YKgrXArcnMsKSJzOIQGCv+qvQ==}
     engines: {node: '>=22.0.0'}
 
-  '@supabase/ssr@0.12.6':
-    resolution: {integrity: sha512-JQ/hwN71p0HXWiETjCAY4sn51NeXCFj1s9l7/WQDp5O9yuF2HSja+rtjR6NWK4G3HigyNxYGwGKXabb4eYZy+Q==}
+  '@supabase/ssr@0.12.7':
+    resolution: {integrity: sha512-wiBtEie1KkRJi9RrZWY3R2imRhX1JY7qMyUCH2z9AUk15gQebNEplM+urbCKamdxaTJLXUU6LlpkJsaxhojCEg==}
     peerDependencies:
       '@supabase/supabase-js': ^2.114.0
 
@@ -1216,12 +1200,6 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
-
-  ai@7.0.102:
-    resolution: {integrity: sha512-zYpEoHm3+T+KGGlP7aLGhrEVCbJdTxb7eoxvGBB+BjSrHnt55+uQ/sHUO69xUly1LB2RoDpHD3o521HSzs+h8g==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   ai@7.0.112:
     resolution: {integrity: sha512-JDIaxfynFQoV/MPh8AUeHIpuFAUjA2uPBXd6Aa8oZBHtiQ58gJ+Q3NHsQUgavIHsA734oCIr3y9QWkhlgCEA0g==}
@@ -2368,8 +2346,8 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
-  lint-staged@17.5.0:
-    resolution: {integrity: sha512-ah2qsNtvKP1+Ak4rAvEEIvcXDLjjbr/xmxCvlequxqEOFYk0qINcZcRxD3Ic8wRn7/oQ8+wC9s0DfDrdMVCRFg==}
+  lint-staged@17.5.1:
+    resolution: {integrity: sha512-7EDuco1xnBMeVpvAbeMq1U5KXwJGLmY8q6l+Ye78r36C4mPc+Vg1Z2SK8gHyRTyvPro90A0q5/FAZ+Au23d6QQ==}
     engines: {node: '>=22.22.1'}
     hasBin: true
 
@@ -2822,8 +2800,8 @@ packages:
     peerDependencies:
       react: ^19.3.0
 
-  react-dropzone@20.1.1:
-    resolution: {integrity: sha512-2cilRFP8bsjDOHpV0sJ6XY8pzJhmz4/cQ6s9yeckOACWYDR+n4MGGtnJh3Rycq/9SLhDWugqDx1z5mtfmOOZhw==}
+  react-dropzone@20.1.2:
+    resolution: {integrity: sha512-gj2m31ZmYOZjTuW6CDfx38/WW2JlbuQ/X2Il8cOwIWa7Znp7vQSPJFtRfDbAjusBuoXzAYktI+r2R6iKMaRTPw==}
     engines: {node: '>= 22'}
     peerDependencies:
       '@types/react': '*'
@@ -3232,10 +3210,6 @@ packages:
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
-  undici@7.29.1:
-    resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
-    engines: {node: '>=20.18.1'}
-
   undici@7.30.0:
     resolution: {integrity: sha512-dkrQXeHSaoamnItlYbmzG0wFYrM0ZwDxCIg0A7aKjTyyhh9svRzCNFEzV+Vm05/yehjCzjDZ31KXfGEjYSztDQ==}
     engines: {node: '>=20.18.1'}
@@ -3380,8 +3354,8 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
-  yaml@2.9.0:
-    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
@@ -3429,13 +3403,6 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/gateway@4.0.82(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.15
-      '@ai-sdk/provider-utils': 5.0.41(zod@4.6.5)
-      '@vercel/oidc': 3.2.0
-      zod: 4.6.5
-
   '@ai-sdk/gateway@4.0.90(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.18
@@ -3457,15 +3424,6 @@ snapshots:
       pkce-challenge: 5.0.1
       zod: 4.6.5
 
-  '@ai-sdk/provider-utils@5.0.41(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.15
-      '@standard-schema/spec': 1.1.0
-      '@workflow/serde': 4.1.0
-      eventsource-parser: 3.1.1
-      undici: 7.29.1
-      zod: 4.6.5
-
   '@ai-sdk/provider-utils@5.0.46(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.18
@@ -3474,10 +3432,6 @@ snapshots:
       eventsource-parser: 3.1.1
       undici: 7.30.0
       zod: 4.6.5
-
-  '@ai-sdk/provider@4.0.15':
-    dependencies:
-      json-schema: 0.4.0
 
   '@ai-sdk/provider@4.0.18':
     dependencies:
@@ -4139,7 +4093,7 @@ snapshots:
       '@supabase/phoenix': 0.4.5
       tslib: 2.8.1
 
-  '@supabase/ssr@0.12.6(@supabase/supabase-js@2.117.1(@opentelemetry/api@1.9.0))':
+  '@supabase/ssr@0.12.7(@supabase/supabase-js@2.117.1(@opentelemetry/api@1.9.0))':
     dependencies:
       '@supabase/supabase-js': 2.117.1(@opentelemetry/api@1.9.0)
       cookie: 1.1.1
@@ -4454,13 +4408,6 @@ snapshots:
 
   agent-base@7.1.4:
     optional: true
-
-  ai@7.0.102(zod@4.6.5):
-    dependencies:
-      '@ai-sdk/gateway': 4.0.82(zod@4.6.5)
-      '@ai-sdk/provider': 4.0.15
-      '@ai-sdk/provider-utils': 5.0.41(zod@4.6.5)
-      zod: 4.6.5
 
   ai@7.0.112(zod@4.6.5):
     dependencies:
@@ -5825,13 +5772,13 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  lint-staged@17.5.0:
+  lint-staged@17.5.1:
     dependencies:
       picomatch: 4.0.7
       string-argv: 0.3.2
       tinyexec: 1.3.1
     optionalDependencies:
-      yaml: 2.9.0
+      yaml: 2.9.1
 
   locate-path@6.0.0:
     dependencies:
@@ -6403,7 +6350,7 @@ snapshots:
       react: 19.3.0
       scheduler: 0.28.0
 
-  react-dropzone@20.1.1(@types/react@19.3.0)(react@19.3.0):
+  react-dropzone@20.1.2(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       attr-accept: 4.0.0
       file-selector: 5.0.1
@@ -6963,8 +6910,6 @@ snapshots:
 
   undici-types@8.9.0: {}
 
-  undici@7.29.1: {}
-
   undici@7.30.0: {}
 
   unified@11.0.5:
@@ -7166,7 +7111,7 @@ snapshots:
 
   yallist@3.1.1: {}
 
-  yaml@2.9.0:
+  yaml@2.9.1:
     optional: true
 
   yargs-parser@22.0.0: {}
