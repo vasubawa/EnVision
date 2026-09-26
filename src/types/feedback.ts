@@ -2,12 +2,11 @@ export interface ChatEntry {
   id: string
   timestamp: number
   role: 'user' | 'assistant'
-  type: 'feedback' | 'message' // feedback = automated socratic check, message = free-form chat
-  isCorrect?: boolean // Only applicable if type === 'feedback'
-  content: string // The markdown content / suggestion
+  type: 'feedback' | 'message'
+  isCorrect?: boolean
+  content: string
 }
 
-// Shared shape expected from LLM JSON output in the analyze-work routes.
 export interface Feedback {
   isCorrect: boolean
   suggestion: string

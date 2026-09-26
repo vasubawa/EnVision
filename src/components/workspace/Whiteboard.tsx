@@ -25,13 +25,11 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
   const [hasSelection, setHasSelection] = useState(false)
   const [showGrid, setShowGrid] = useState(true)
 
-  // Undo/Redo State
   const [history, setHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const isHistoryUpdate = useRef(false)
   const historyIndexRef = useRef(-1)
 
-  // Expose undo/redo to Toolbar
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < history.length - 1
 
@@ -39,19 +37,17 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     if (isHistoryUpdate.current || !fabricRef.current) return
     const json = JSON.stringify(fabricRef.current.toJSON())
     setHistory((prev) => {
-      const newHistory = prev.slice(0, historyIndexRef.current + 1)
-      newHistory.push(json)
-      const newIdx = newHistory.length - 1
+      const truncated = prev.slice(0, historyIndexRef.current + 1)
+      const capped = truncated.length > 25 ? truncated.slice(truncated.length - 25) : truncated
+      capped.push(json)
+      const newIdx = capped.length - 1
       setHistoryIndex(newIdx)
       historyIndexRef.current = newIdx
 
-      // Don't trigger auto-analysis on the initial blank state
-      // Defer out of the React state updater to avoid "setState during render" warning
-      // (Zustand notifies TutorChat subscribers, which can't happen mid-reconciliation)
       if (newIdx > 0) {
         queueMicrotask(() => setLastCanvasUpdate(Date.now()))
       }
-      return newHistory
+      return capped
     })
   }, [setLastCanvasUpdate])
 
@@ -101,9 +97,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
               img.scale(scale)
               canvas.centerObject(img)
 
-              // Make image a movable object instead of static background
               canvas.add(img)
-              // Don't send to back if it's manually added via toolbar so it doesn't hide behind existing things
               saveHistory()
             })
             // eslint-disable-next-line no-console
@@ -120,8 +114,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
             }).promise
             const page = await pdf.getPage(1)
 
-            // Render PDF to a hidden canvas
-            const viewport = page.getViewport({ scale: 2.0 }) // High res
+            const viewport = page.getViewport({ scale: 2.0 })
             const pdfCanvas = document.createElement('canvas')
             const context = pdfCanvas.getContext('2d')
             if (!context) return
@@ -134,7 +127,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
               viewport: viewport,
             }).promise
 
-            // Convert to Fabric image
             const dataUrl = pdfCanvas.toDataURL('image/png')
             const img = await fabric.FabricImage.fromURL(dataUrl)
 
@@ -163,7 +155,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
 
-    // Initialize Fabric canvas
     const canvas = new fabric.Canvas(canvasRef.current, {
       isDrawingMode: true,
       width: containerRef.current.clientWidth,
@@ -172,14 +163,23 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     })
     fabricRef.current = canvas
 
-    // Register getCanvasImage and getCanvasJson
     setGetCanvasImage(() => {
       if (!fabricRef.current) return null
-      return fabricRef.current.toDataURL({
-        format: 'png',
-        quality: 0.8,
-        multiplier: 1,
+      const canvas = fabricRef.current
+      const maxDim = Math.max(canvas.width || 800, canvas.height || 600)
+      const multiplier = Math.min(1, 1280 / maxDim)
+      const isDark = document.documentElement.classList.contains('dark')
+      const prevBg = canvas.backgroundColor
+      canvas.backgroundColor = isDark ? '#18181b' : '#ffffff'
+      canvas.renderAll()
+      const dataUrl = canvas.toDataURL({
+        format: 'jpeg',
+        quality: 0.75,
+        multiplier,
       })
+      canvas.backgroundColor = prevBg
+      canvas.renderAll()
+      return dataUrl
     })
 
     setGetCanvasJson(() => {
@@ -187,8 +187,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       return JSON.stringify(fabricRef.current.toJSON())
     })
 
-    // Set up drawing brush with the color/size held at mount time; later changes
-    // are applied live by the effect below without recreating the canvas.
     const brush = new fabric.PencilBrush(canvas)
     brush.color = color
     brush.width = size
@@ -198,15 +196,13 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       canvas.loadFromJSON(initialCanvasState).then(() => {
         canvas.renderAll()
         saveHistory()
+        setLastCanvasUpdate(Date.now())
       })
     } else {
-      // Initialize blank state for history
       saveHistory()
 
-      // Load file (Image or PDF)
       if (file) {
         handleAddFile(file)
-        // For initial file, we want it to be at the back
         setTimeout(() => {
           if (fabricRef.current) {
             const objs = fabricRef.current.getObjects()
@@ -216,7 +212,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       }
     }
 
-    // --- INFINITE DOT GRID ---
     canvas.on('after:render', function () {
       if (document.documentElement.getAttribute('data-show-grid') !== 'true') return
 
@@ -224,54 +219,63 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       const vpt = canvas.viewportTransform!
       const zoom = canvas.getZoom()
 
-      // Dynamic grid step calculation
-      let step = 30 // Base step in canvas space
+      let step = 28
       let screenStep = step * zoom
 
-      // If zoomed out too much, increase step to avoid rendering millions of dots
-      while (screenStep < 20) {
+      while (screenStep < 10) {
         step *= 2
         screenStep = step * zoom
       }
 
-      // If zoomed in too much, decrease step to keep grid visible
-      while (screenStep > 80) {
+      while (screenStep > 90) {
         step /= 2
         screenStep = step * zoom
       }
 
-      const offsetX = vpt[4] % screenStep
-      const offsetY = vpt[5] % screenStep
+      const offsetX = ((vpt[4] % screenStep) + screenStep) % screenStep
+      const offsetY = ((vpt[5] % screenStep) + screenStep) % screenStep
+
+      const dotRadius = Math.max(0.8, Math.min(2.2, 1.25 * Math.sqrt(zoom)))
 
       ctx.save()
       ctx.beginPath()
       const isDark = document.documentElement.classList.contains('dark')
-      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
+      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.09)'
 
-      // Draw dots slightly out of bounds to ensure seamless panning
       for (let x = offsetX - screenStep; x < canvas.width! + screenStep; x += screenStep) {
         for (let y = offsetY - screenStep; y < canvas.height! + screenStep; y += screenStep) {
           ctx.moveTo(x, y)
-          ctx.arc(x, y, 1.5, 0, Math.PI * 2)
+          ctx.arc(x, y, dotRadius, 0, Math.PI * 2)
         }
       }
       ctx.fill()
       ctx.restore()
     })
 
-    // --- INFINITE CANVAS PAN/ZOOM & SHAPES ---
     canvas.on('mouse:wheel', function (opt) {
-      const delta = opt.e.deltaY
-      let zoom = canvas.getZoom()
-      zoom *= 0.999 ** delta
-      if (zoom > 50) zoom = 50
-      if (zoom < 0.05) zoom = 0.05
-      canvas.zoomToPoint(new fabric.Point(opt.e.offsetX, opt.e.offsetY), zoom)
-      opt.e.preventDefault()
-      opt.e.stopPropagation()
+      const e = opt.e
+      if (e.ctrlKey || e.metaKey) {
+        const delta = e.deltaY
+        let zoom = canvas.getZoom()
+        zoom *= 0.995 ** delta
+        if (zoom > 50) zoom = 50
+        if (zoom < 0.05) zoom = 0.05
+        canvas.zoomToPoint(new fabric.Point(e.offsetX, e.offsetY), zoom)
+      } else {
+        const vpt = canvas.viewportTransform
+        if (vpt) {
+          vpt[4] -= e.deltaX
+          vpt[5] -= e.deltaY
+          canvas.requestRenderAll()
+        }
+      }
+      e.preventDefault()
+      e.stopPropagation()
     })
 
     let isPanning = false
+    let isErasing = false
+    let erasedAny = false
     let lastPosX = 0
     let lastPosY = 0
     let initialTouchDistance = 0
@@ -281,7 +285,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     let origX = 0,
       origY = 0
 
-    // Use a ref to access current mode inside event listeners without re-binding them
     const getMode = () => document.documentElement.getAttribute('data-draw-mode') || 'draw'
     const getColor = () => document.documentElement.getAttribute('data-draw-color') || '#C05621'
     const getSize = () => parseInt(document.documentElement.getAttribute('data-draw-size') || '4')
@@ -290,7 +293,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       const evt = opt.e as MouseEvent | TouchEvent
       const currentMode = getMode()
 
-      // TouchEvent is not defined in Firefox / desktop environments — guard every instanceof check
       const isTouchEvent = (e: Event): e is TouchEvent =>
         typeof TouchEvent !== 'undefined' && e instanceof TouchEvent
 
@@ -299,33 +301,43 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       const getClientY = (e: MouseEvent | TouchEvent) =>
         isTouchEvent(e) && e.touches.length > 0 ? e.touches[0].clientY : (e as MouseEvent).clientY
 
-      // Object Eraser Logic
       if (currentMode === 'erase') {
+        isErasing = true
+        erasedAny = false
         const target = opt.target
         if (target && target !== canvas.backgroundImage) {
           canvas.remove(target)
-          saveHistory()
+          canvas.requestRenderAll()
+          erasedAny = true
         }
         return
       }
 
-      // Text Tool Logic
       if (currentMode === 'text') {
+        if (opt.target && (opt.target.type === 'i-text' || opt.target.type === 'text')) {
+          return
+        }
         const pointer = canvas.getScenePoint(evt)
-        const text = new fabric.IText('Type here...', {
+        const text = new fabric.IText('', {
           left: pointer.x,
           top: pointer.y,
           fill: getColor(),
-          fontSize: Math.max(24, getSize() * 6),
+          fontSize: Math.max(20, getSize() * 5),
           fontFamily: 'var(--font-sans)',
         })
         canvas.add(text)
         canvas.setActiveObject(text)
         text.enterEditing()
-        text.selectAll()
-        // We do not auto-switch mode to 'select' here because we don't have access to setMode inside this effect easily without adding it to dependencies (which re-binds).
-        // We'll just let them keep clicking to add text, or manually switch tools.
-        saveHistory()
+        text.hiddenTextarea?.focus()
+
+        text.on('editing:exited', () => {
+          if (!text.text || !text.text.trim()) {
+            canvas.remove(text)
+            canvas.requestRenderAll()
+          } else {
+            saveHistory()
+          }
+        })
         return
       }
 
@@ -333,11 +345,10 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       const isAltKey = evt instanceof MouseEvent && evt.altKey
       const isMultiTouch = isTouchEvent(evt) && evt.touches.length > 1
 
-      // Multi-touch Pan/Zoom
       if (isMultiTouch && isTouchEvent(evt)) {
         isPanning = true
         canvas.selection = false
-        canvas.isDrawingMode = false // Temporarily disable drawing
+        canvas.isDrawingMode = false
         const t1 = evt.touches[0]
         const t2 = evt.touches[1]
         initialTouchDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
@@ -349,7 +360,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         return
       }
 
-      // Middle click, Alt, or 'pan' mode for panning
       if (isMiddleClick || isAltKey || currentMode === 'pan') {
         isPanning = true
         canvas.selection = false
@@ -359,7 +369,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         return
       }
 
-      // Shapes Logic
       if (['rect', 'circle', 'line'].includes(currentMode)) {
         const pointer = canvas.getScenePoint(evt)
         origX = pointer.x
@@ -410,12 +419,21 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       const getClientY = (e: MouseEvent | TouchEvent) =>
         isTouchEvent(e) && e.touches.length > 0 ? e.touches[0].clientY : (e as MouseEvent).clientY
 
+      if (isErasing && getMode() === 'erase') {
+        const target = opt.target
+        if (target && target !== canvas.backgroundImage) {
+          canvas.remove(target)
+          canvas.requestRenderAll()
+          erasedAny = true
+        }
+        return
+      }
+
       if (isPanning) {
         const vpt = canvas.viewportTransform
         if (vpt) {
-          // Multi-touch Zoom/Pan
           if (isTouchEvent(evt) && evt.touches.length > 1) {
-            evt.preventDefault() // prevent scroll
+            evt.preventDefault()
             const t1 = evt.touches[0]
             const t2 = evt.touches[1]
             const currentDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
@@ -424,7 +442,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
               y: (t1.clientY + t2.clientY) / 2,
             }
 
-            // Pinch to Zoom
             if (initialTouchDistance > 0) {
               const scale = currentDistance / initialTouchDistance
               let zoom = canvas.getZoom() * scale
@@ -434,7 +451,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
             }
             initialTouchDistance = currentDistance
 
-            // Pan
             if (lastTouchCenter) {
               vpt[4] += currentCenter.x - lastTouchCenter.x
               vpt[5] += currentCenter.y - lastTouchCenter.y
@@ -444,7 +460,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
             return
           }
 
-          // Single pointer/mouse pan
           const cx = getClientX(evt)
           const cy = getClientY(evt)
 
@@ -494,36 +509,42 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     })
 
     const handleMouseUp = () => {
+      if (isErasing) {
+        isErasing = false
+        if (erasedAny) {
+          saveHistory()
+          erasedAny = false
+        }
+      }
+
       if (isPanning) {
         canvas.setViewportTransform(canvas.viewportTransform!)
         isPanning = false
         initialTouchDistance = 0
         lastTouchCenter = null
-        canvas.defaultCursor = getMode() === 'draw' ? 'crosshair' : 'default'
+        canvas.defaultCursor =
+          getMode() === 'draw' || getMode() === 'highlighter' ? 'crosshair' : 'default'
         if (getMode() === 'select') canvas.selection = true
-        if (getMode() === 'draw') canvas.isDrawingMode = true
+        if (getMode() === 'draw' || getMode() === 'highlighter') canvas.isDrawingMode = true
       }
 
       if (shapeObj) {
         shapeObj.setCoords()
         shapeObj = null
-        saveHistory() // Save after drawing a shape
+        saveHistory()
       }
     }
 
     canvas.on('mouse:up', handleMouseUp)
     window.addEventListener('mouseup', handleMouseUp)
 
-    // Handle History Events (Debounced slightly by checking isHistoryUpdate)
     canvas.on('object:modified', saveHistory)
-    canvas.on('path:created', saveHistory) // Fired when freehand drawing finishes
+    canvas.on('path:created', saveHistory)
 
-    // Selection handlers
     canvas.on('selection:created', () => setHasSelection(true))
     canvas.on('selection:updated', () => setHasSelection(true))
     canvas.on('selection:cleared', () => setHasSelection(false))
 
-    // Handle resize
     const handleResize = () => {
       if (containerRef.current) {
         canvas.setDimensions({
@@ -541,13 +562,9 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       canvas.dispose()
       fabricRef.current = null
     }
-    // color/size are intentionally excluded: this effect only sets the brush's
-    // initial value. Live changes are applied by the effect below, which would
-    // otherwise fight with a full canvas rebuild on every color/size change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, handleAddFile, saveHistory, setGetCanvasImage])
 
-  // Update DOM attributes so Fabric event listeners can read current state without recreating canvas
   useEffect(() => {
     document.documentElement.setAttribute('data-draw-mode', mode)
     document.documentElement.setAttribute('data-draw-color', color)
@@ -557,12 +574,20 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     if (!fabricRef.current) return
     const canvas = fabricRef.current
 
-    canvas.isDrawingMode = mode === 'draw'
+    canvas.isDrawingMode = mode === 'draw' || mode === 'highlighter'
     canvas.selection = mode === 'select'
 
-    if (mode === 'draw' && canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = color
-      canvas.freeDrawingBrush.width = size
+    if (canvas.freeDrawingBrush) {
+      if (mode === 'highlighter') {
+        const r = parseInt(color.slice(1, 3), 16) || 214
+        const g = parseInt(color.slice(3, 5), 16) || 158
+        const b = parseInt(color.slice(5, 7), 16) || 46
+        canvas.freeDrawingBrush.color = `rgba(${r}, ${g}, ${b}, 0.35)`
+        canvas.freeDrawingBrush.width = Math.max(16, size * 3)
+      } else if (mode === 'draw') {
+        canvas.freeDrawingBrush.color = color
+        canvas.freeDrawingBrush.width = size
+      }
     }
 
     if (mode === 'pan') {
@@ -575,17 +600,15 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     } else if (mode === 'text') {
       canvas.defaultCursor = 'text'
     } else {
-      canvas.defaultCursor = mode === 'draw' ? 'crosshair' : 'default'
+      canvas.defaultCursor = mode === 'draw' || mode === 'highlighter' ? 'crosshair' : 'default'
     }
 
-    // Deselect objects when going out of select mode
     if (mode !== 'select') {
       canvas.discardActiveObject()
       canvas.requestRenderAll()
     }
   }, [mode, color, size, showGrid])
 
-  // Re-render when theme changes to update grid color
   useEffect(() => {
     if (fabricRef.current) {
       fabricRef.current.requestRenderAll()
@@ -596,9 +619,14 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     if (!fabricRef.current) return
     const activeObjects = fabricRef.current.getActiveObjects()
     if (activeObjects.length) {
+      const editingObj = activeObjects.find(
+        (obj) => (obj as unknown as { isEditing?: boolean }).isEditing,
+      )
+      if (editingObj) return
+
       fabricRef.current.discardActiveObject()
       activeObjects.forEach((obj) => fabricRef.current?.remove(obj))
-      saveHistory() // Save state after delete
+      saveHistory()
     }
   }, [saveHistory])
 
@@ -609,19 +637,16 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
 
     let changed = false
     activeObjects.forEach((obj) => {
-      // Only beautify paths (hand-drawn lines)
       if (obj.type === 'path') {
         const pathObj = obj as fabric.Path
         const bounds = pathObj.getBoundingRect()
         const width = bounds.width
         const height = bounds.height
 
-        // Skip tiny dots/noise
         if (width < 5 && height < 5) return
 
         changed = true
 
-        // If it's very thin in one dimension, it's likely meant to be a straight line
         if (width < 20 || height < 20) {
           const line = new fabric.Line(
             [bounds.left, bounds.top, bounds.left + width, bounds.top + height],
@@ -635,7 +660,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
           return
         }
 
-        // If aspect ratio is close to 1:1, it's likely a circle or square
         const aspectRatio = width / height
         if (aspectRatio > 0.75 && aspectRatio < 1.33) {
           const radius = Math.max(width, height) / 2
@@ -650,7 +674,6 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
           fabricRef.current!.add(circle)
           fabricRef.current!.remove(pathObj)
         } else {
-          // Otherwise assume rectangle
           const rect = new fabric.Rect({
             left: bounds.left,
             top: bounds.top,
@@ -682,7 +705,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       fabricRef.current.backgroundImage = bg
     }
     fabricRef.current.renderAll()
-    saveHistory() // Save state after clear
+    saveHistory()
   }, [saveHistory])
 
   const handleDownloadImage = useCallback(() => {
@@ -690,7 +713,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     const dataUrl = fabricRef.current.toDataURL({
       format: 'png',
       quality: 1,
-      multiplier: 2, // High res export
+      multiplier: 2,
     })
     const link = document.createElement('a')
     link.download = 'envision-whiteboard.png'
@@ -698,7 +721,64 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     link.click()
   }, [])
 
-  // Keyboard shortcuts
+  useEffect(() => {
+    if (!fabricRef.current) return
+    const activeObjects = fabricRef.current.getActiveObjects()
+    if (activeObjects.length > 0) {
+      let modified = false
+      activeObjects.forEach((obj) => {
+        if (
+          obj.type === 'path' ||
+          obj.type === 'line' ||
+          obj.type === 'rect' ||
+          obj.type === 'circle'
+        ) {
+          obj.set('stroke', color)
+          obj.set('strokeWidth', size)
+          modified = true
+        } else if (obj.type === 'i-text' || obj.type === 'text') {
+          obj.set('fill', color)
+          modified = true
+        }
+      })
+      if (modified) {
+        fabricRef.current.requestRenderAll()
+        saveHistory()
+      }
+    }
+  }, [color, size, saveHistory])
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      )
+        return
+
+      const activeObj = fabricRef.current?.getActiveObject()
+      if (activeObj && (activeObj as unknown as { isEditing?: boolean }).isEditing) return
+
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) {
+            handleAddFile(file)
+            e.preventDefault()
+            break
+          }
+        }
+      }
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [handleAddFile])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -707,9 +787,11 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       )
         return
 
+      const activeObj = fabricRef.current?.getActiveObject()
+      if (activeObj && (activeObj as unknown as { isEditing?: boolean }).isEditing) return
+
       const key = e.key.toLowerCase()
 
-      // Undo / Redo
       if ((e.ctrlKey || e.metaKey) && key === 'z') {
         if (e.shiftKey) {
           handleRedo()
@@ -725,17 +807,15 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         return
       }
 
-      // Tools
       if (key === 'v') setMode('select')
       if (key === 'p') setMode('draw')
       if (key === 'r') setMode('rect')
       if (key === 'c') setMode('circle')
       if (key === 'l') setMode('line')
-      if (key === 'h') setMode('pan')
+      if (key === 'h') setMode('highlighter')
       if (key === 'e') setMode('erase')
       if (key === 't') setMode('text')
 
-      // Delete
       if (e.key === 'Backspace' || e.key === 'Delete') {
         handleDeleteSelected()
       }

@@ -103,7 +103,6 @@ export function UploadDropzone() {
   return (
     <div className="mx-auto w-full max-w-xl">
       {!file ? (
-        /* Empty state — drop zone */
         <div
           {...getRootProps()}
           className={`animate-fade-in-up group relative flex cursor-pointer flex-col items-center justify-center gap-5 rounded-2xl border px-8 py-12 transition-all duration-300 ${
@@ -131,7 +130,6 @@ export function UploadDropzone() {
             <p className="text-foreground/35 font-sans text-sm">PDF, PNG, JPG or WEBP accepted</p>
           </div>
 
-          {/* Action buttons */}
           {!isDragActive && (
             <div className="mt-2 flex flex-col items-center gap-3 sm:flex-row">
               <button
@@ -162,9 +160,7 @@ export function UploadDropzone() {
           )}
         </div>
       ) : (
-        /* File selected state */
         <div className="animate-fade-in-up border-border bg-card/80 dark:bg-card/60 flex flex-col gap-5 rounded-2xl border p-6 shadow-sm backdrop-blur-sm transition-shadow hover:shadow">
-          {/* File info row */}
           <div className="flex items-center gap-4">
             <div className="bg-primary-500/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
               <FileText className="text-primary-500 h-5 w-5" strokeWidth={1.5} />
@@ -188,7 +184,6 @@ export function UploadDropzone() {
 
           <div className="bg-border h-px w-full" />
 
-          {/* Action row */}
           <div className="flex items-center justify-between">
             <p className="text-foreground/35 font-serif text-xs italic">
               Ready to extract problems

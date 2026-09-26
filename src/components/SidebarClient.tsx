@@ -104,7 +104,6 @@ export default function SidebarClient({
 
   return (
     <div className="bg-background flex h-screen overflow-hidden">
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 md:hidden"
@@ -112,14 +111,12 @@ export default function SidebarClient({
         />
       )}
 
-      {/* Sidebar container */}
       <div
         className={`border-border bg-background fixed inset-y-0 left-0 z-50 flex w-64 flex-col overflow-hidden border-r transition-all duration-300 ease-in-out md:relative ${isOpen ? 'translate-x-0' : '-translate-x-full md:w-0 md:-translate-x-full md:border-r-0'}`}
       >
         <div
           className={`flex h-full w-64 flex-col overflow-hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 md:opacity-0'}`}
         >
-          {/* Header */}
           <div className="border-border/50 flex h-14 shrink-0 items-center justify-between border-b px-4">
             <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
               <EnVisionMark className="text-primary-500 h-6 w-6" />
@@ -133,7 +130,6 @@ export default function SidebarClient({
             </button>
           </div>
 
-          {/* New Workspace Button */}
           <div className="shrink-0 p-3">
             <button
               onClick={handleNewSession}
@@ -149,7 +145,6 @@ export default function SidebarClient({
             </button>
           </div>
 
-          {/* Workspace List */}
           <div className="flex-1 overflow-y-auto px-2 py-2">
             <div className="text-foreground/50 mb-2 px-2 text-xs font-semibold">Recent</div>
             <div className="flex flex-col gap-0.5">
@@ -184,7 +179,6 @@ export default function SidebarClient({
             </div>
           </div>
 
-          {/* Footer */}
           <div className="border-border/50 shrink-0 border-t p-4">
             <div className="flex flex-col gap-4">
               <AuthMenu mode="sidebar" themeToggle={<ThemeToggle />} />
@@ -193,13 +187,10 @@ export default function SidebarClient({
         </div>
       </div>
 
-      {/* Main Content wrapper */}
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Main View */}
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
 
-      {/* Fixed re-open button — always rendered on top so it's never hidden by workspace content */}
       {!isOpen && (
         <button
           onClick={() => toggle(true)}

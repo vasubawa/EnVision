@@ -1,5 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
+import {
+  MODELS,
+  apiKey,
+  stripThinking,
+  fetchAIWithRetry,
+  UpstreamAIError,
+  type ChatCompletionResponse,
+} from '@/lib/models'
 import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
@@ -27,44 +34,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
     }
 
-    // Step 1: Vision Transcription (45s timeout — reasoning model needs room to think)
     const visionAbort = new AbortController()
     const visionTimeout = setTimeout(() => visionAbort.abort(), 45_000)
 
     let visionRes: ChatCompletionResponse
     try {
-      const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: visionAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey(MODELS.vision)}`,
+      const visionReq = await fetchAIWithRetry(
+        `${MODELS.vision.apiBase}/chat/completions`,
+        {
+          method: 'POST',
+          signal: visionAbort.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey(MODELS.vision)}`,
+          },
+          body: JSON.stringify({
+            model: MODELS.vision.model,
+            max_tokens: 2000,
+            chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
+            temperature: 0.6,
+            top_p: 0.95,
+            response_format: { type: 'json_object' },
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: VISION_TRANSCRIBE_PROMPT,
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: canvasBase64 },
+                  },
+                ],
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model: MODELS.vision.model,
-          max_tokens: 2000,
-          chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
-          temperature: 0.6,
-          top_p: 0.95,
-          response_format: { type: 'json_object' },
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: VISION_TRANSCRIBE_PROMPT,
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: canvasBase64 },
-                },
-              ],
-            },
-          ],
-        }),
-      })
-      if (!visionReq.ok) throw new Error(`Vision API error: ${await visionReq.text()}`)
+        'vision service',
+      )
       visionRes = await visionReq.json()
     } finally {
       clearTimeout(visionTimeout)
@@ -74,31 +83,33 @@ export async function POST(req: NextRequest) {
       stripThinking,
     )
 
-    // Step 2: Socratic Tutor (25s timeout)
     const groqAbort = new AbortController()
     const groqTimeout = setTimeout(() => groqAbort.abort(), 25_000)
 
     let groqRes: ChatCompletionResponse
     try {
-      const groqReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: groqAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey(MODELS.reasoning)}`,
+      const groqReq = await fetchAIWithRetry(
+        `${MODELS.reasoning.apiBase}/chat/completions`,
+        {
+          method: 'POST',
+          signal: groqAbort.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey(MODELS.reasoning)}`,
+          },
+          body: JSON.stringify({
+            model: MODELS.reasoning.model,
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`,
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model: MODELS.reasoning.model,
-          max_tokens: 2048,
-          messages: [
-            {
-              role: 'user',
-              content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`,
-            },
-          ],
-        }),
-      })
-      if (!groqReq.ok) throw new Error(`Groq API error: ${await groqReq.text()}`)
+        'reasoning service',
+      )
       groqRes = await groqReq.json()
     } finally {
       clearTimeout(groqTimeout)
@@ -141,15 +152,13 @@ export async function POST(req: NextRequest) {
       return null
     }
 
-    // Stage 1: direct JSON parse of the raw response
     try {
       const obj = JSON.parse(rawText)
       parsedResult = extractResult(obj)
     } catch {
-      /* continue to next stage */
+      /* continue */
     }
 
-    // Stage 2: strip markdown fences and try again
     if (!parsedResult) {
       try {
         const stripped = rawText.replace(/```json|```/g, '').trim()
@@ -160,7 +169,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Stage 3: extract the first JSON object block from anywhere in the text
     if (!parsedResult) {
       try {
         const match = rawText.match(/\{[\s\S]*\}/)
@@ -170,7 +178,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fallback regex extraction if JSON.parse fails due to unescaped backslashes
     if (!parsedResult) {
       const suggestionMatch = rawText.match(/"suggestion"\s*:\s*"([\s\S]*?)"\s*\}/)
       if (suggestionMatch) {
@@ -184,7 +191,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Stage 4: last-resort regex strip — pull the suggestion string out manually
     if (!parsedResult) {
       // eslint-disable-next-line no-console
       console.warn('[analyze-work] All JSON parse stages failed, using regex strip')
@@ -203,7 +209,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Save feedback — ownership already verified above
     let savedId = undefined
 
     if (parsedResult) {
@@ -228,8 +233,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ...parsedResult, id: savedId })
+    return NextResponse.json({
+      ...parsedResult,
+      id: savedId,
+      canvasTranscription: canvasDescription,
+    })
   } catch (error: unknown) {
+    if (error instanceof UpstreamAIError) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[analyze-work] Upstream AI error (${error.status}):`,
+        error.details || error.message,
+      )
+      return NextResponse.json({ error: error.userMessage }, { status: error.status })
+    }
+
     const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console
     console.error('analyze-work error:', error)
@@ -237,7 +255,7 @@ export async function POST(req: NextRequest) {
       {
         error: isTimeout
           ? 'Analysis timed out. Please try again.'
-          : 'An internal error occurred during analysis.',
+          : 'An unexpected error occurred during analysis. Please try again.',
       },
       { status: isTimeout ? 504 : 500 },
     )

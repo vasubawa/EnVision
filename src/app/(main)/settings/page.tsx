@@ -101,7 +101,6 @@ export default function SettingsPage() {
       <h1 className="mb-8 text-3xl font-bold tracking-tight">Account Settings</h1>
 
       <div className="space-y-8">
-        {/* Email Settings */}
         <section className="bg-card border-border rounded-xl border p-6">
           <h2 className="mb-4 text-xl font-semibold">Email Address</h2>
           <form onSubmit={handleUpdateEmail} className="space-y-4">
@@ -136,7 +135,6 @@ export default function SettingsPage() {
           </form>
         </section>
 
-        {/* Password Settings */}
         <section className="bg-card border-border rounded-xl border p-6">
           <h2 className="mb-4 text-xl font-semibold">Change Password</h2>
           <form onSubmit={handleUpdatePassword} className="space-y-4">

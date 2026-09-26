@@ -10,6 +10,7 @@ const Whiteboard = dynamic(
   { ssr: false },
 )
 import { TutorChat } from '@/components/workspace/TutorChat'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface Workspace {
   id: string
@@ -26,7 +27,6 @@ export default function WorkspaceClient({
   initialMessages: unknown[]
   initialCanvasState: string | null
 }) {
-  // Start closed; open by default on desktop after hydration
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [title, setTitle] = useState(workspace.title || 'Blank Workspace')
@@ -42,7 +42,6 @@ export default function WorkspaceClient({
     if (window.innerWidth >= 768) setIsChatOpen(true)
   }, [])
 
-  // Auto-save Canvas
   useEffect(() => {
     if (!lastCanvasUpdate || !getCanvasJson) return
     const timeout = setTimeout(async () => {
@@ -116,8 +115,8 @@ export default function WorkspaceClient({
 
   return (
     <div className="text-foreground flex h-[100dvh] w-full flex-col overflow-hidden bg-transparent">
-      {/* Workspace Header — slim on mobile */}
-      <header className="border-border/50 bg-background/50 z-40 flex h-11 shrink-0 items-center justify-center border-b px-4 backdrop-blur-md sm:h-14">
+      <header className="border-border/50 bg-background/50 z-40 flex h-11 shrink-0 items-center justify-between border-b px-4 backdrop-blur-md sm:h-14">
+        <div className="w-10 sm:w-16" />
         <div className="flex items-center justify-center gap-2">
           {isEditingTitle ? (
             <div className="flex items-center gap-2">
@@ -156,21 +155,17 @@ export default function WorkspaceClient({
             </button>
           )}
         </div>
+        <div className="flex w-10 items-center justify-end sm:w-16">
+          <ThemeToggle />
+        </div>
       </header>
 
-      {/* Main Workspace Area */}
       <main className="relative flex flex-1 overflow-hidden">
-        {/* Whiteboard fills everything */}
         <div className="relative h-full w-full bg-white dark:bg-black/20">
           <Whiteboard initialCanvasState={initialCanvasState} />
         </div>
 
-        {/* ── Chat panel ──
-            Mobile  : full-width bottom sheet, slides up from below the toolbar
-            Desktop : floating card pinned bottom-right above the FAB
-        */}
         <>
-          {/* Mobile scrim — tap to close */}
           <div
             className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 sm:hidden ${
               isChatOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
@@ -180,9 +175,7 @@ export default function WorkspaceClient({
 
           <div
             className={[
-              // Mobile: fixed full-width bottom sheet
               'fixed inset-x-0 bottom-0 z-50 flex flex-col transition-all duration-300 ease-in-out',
-              // Desktop: floating card
               'sm:absolute sm:inset-x-auto sm:right-6 sm:bottom-[5.5rem] sm:w-[420px] sm:max-w-[calc(100vw-3rem)]',
               'shadow-2xl',
               isChatOpen
@@ -190,12 +183,10 @@ export default function WorkspaceClient({
                 : 'pointer-events-none translate-y-full opacity-0 sm:translate-y-8 sm:opacity-0',
             ].join(' ')}
             style={{
-              // Mobile fills remaining height above toolbar; desktop caps at 680px
               height: 'min(calc(100dvh - 5rem), 680px)',
             }}
           >
             <div className="bg-card border-border/50 flex h-full flex-col overflow-hidden rounded-t-2xl border shadow-2xl backdrop-blur-xl sm:rounded-2xl">
-              {/* Header */}
               <div className="bg-card/80 border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5 backdrop-blur-md sm:py-3">
                 <div className="flex items-center gap-2">
                   <div className="bg-primary-500/10 flex h-6 w-6 items-center justify-center rounded-full">
@@ -218,17 +209,12 @@ export default function WorkspaceClient({
           </div>
         </>
 
-        {/* FAB — chat toggle
-            Mobile : sits just above the toolbar
-            Desktop: bottom-6 right-6
-        */}
         <button
           onClick={() => setIsChatOpen((v) => !v)}
           className={[
             'absolute right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full text-white shadow-xl',
             'bg-primary-500 hover:bg-primary-600 shadow-primary-500/25',
             'transition-all duration-200 hover:scale-105 active:scale-95',
-            // On mobile, float above the bottom toolbar strip
             'bottom-24 sm:right-6 sm:bottom-6 sm:h-14 sm:w-14',
           ].join(' ')}
           title={isChatOpen ? 'Close AI Tutor' : 'Open AI Tutor'}

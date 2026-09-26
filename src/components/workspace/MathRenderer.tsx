@@ -8,7 +8,6 @@ interface MathRendererProps {
   className?: string
 }
 
-// Prose words that signal the end of a math run (LLM sometimes writes bare LaTeX without $)
 const PROSE_WORDS = new Set([
   'to',
   'and',
@@ -84,27 +83,19 @@ const PROSE_WORDS = new Set([
   'differentiate',
 ])
 
-// Regex: LaTeX command OR math structural chars
 const LATEX_CHAR_RE = /\\[a-zA-Z]+|[{}^_]/
 
-/**
- * Detects LaTeX commands that appear outside $...$ delimiters (bare LaTeX)
- * and wraps them in $...$, so KaTeX can render them.
- */
 function wrapBareLatex(text: string): string {
-  // Step 1 — protect already-delimited spans with placeholders
   const spans: string[] = []
   const protected_ = text.replace(/\$\$[\s\S]*?\$\$|\$(?!\$)[^$\n]*?\$/g, (m) => {
     spans.push(m)
     return `\x00${spans.length - 1}\x00`
   })
 
-  // Quick exit: no bare LaTeX commands present
   if (!/\\[a-zA-Z]/.test(protected_)) {
     return spans.reduce((s, span, i) => s.replace(`\x00${i}\x00`, span), protected_)
   }
 
-  // Step 2 — token-based state machine
   const tokens = protected_.split(/(\s+)/)
   const out: string[] = []
   let mathBuf: string[] = []
@@ -112,7 +103,6 @@ function wrapBareLatex(text: string): string {
 
   const flushMath = (...extra: string[]) => {
     if (mathBuf.length) {
-      // Find trailing spaces
       const trailingSpaces: string[] = []
       while (mathBuf.length && /^\s+$/.test(mathBuf[mathBuf.length - 1])) {
         trailingSpaces.unshift(mathBuf.pop()!)
@@ -137,14 +127,12 @@ function wrapBareLatex(text: string): string {
   }
 
   for (const tok of tokens) {
-    // Whitespace: buffer if in math, emit otherwise
     if (/^\s+$/.test(tok)) {
       if (inMath) mathBuf.push(tok)
       else out.push(tok)
       continue
     }
 
-    // Protected placeholder: always ends any math run
     if (tok.includes('\x00')) {
       if (inMath) flushMath(tok)
       else out.push(tok)
@@ -157,7 +145,6 @@ function wrapBareLatex(text: string): string {
 
     if (hasLatex) {
       if (!inMath) {
-        // Try to absorb preceding context: "y =", "f(x) =", "dS =", etc.
         const stolen: string[] = []
         let k = out.length - 1
         let stolen_non_ws = 0
@@ -168,7 +155,6 @@ function wrapBareLatex(text: string): string {
             k--
             continue
           }
-          // Steal: single-letter variables, digits, operators, parens, equals, commas, dots
           if (/^[a-zA-Z0-9=+\-*/()[\]|.,]$/.test(prev) || /^[a-zA-Z]{1,3}$/.test(prev)) {
             stolen.unshift(prev)
             k--
@@ -182,7 +168,6 @@ function wrapBareLatex(text: string): string {
       mathBuf.push(tok)
     } else if (inMath) {
       if (isProseWord || isPunct) {
-        // Trim trailing whitespace from mathBuf before flushing
         while (mathBuf.length && /^\s+$/.test(mathBuf[mathBuf.length - 1])) {
           out.push(mathBuf.pop()!)
         }
@@ -197,7 +182,6 @@ function wrapBareLatex(text: string): string {
 
   if (inMath) flushMath()
 
-  // Step 3 — restore protected spans
   let result = out.join('')
   spans.forEach((span, i) => {
     result = result.replace(`\x00${i}\x00`, span)
@@ -205,18 +189,10 @@ function wrapBareLatex(text: string): string {
   return result
 }
 
-// Memoized: TutorChat re-renders on every streamed token, and without this every
-// past message's KaTeX/Markdown would be re-parsed on each token instead of just
-// the one message that's actually changing — the more history on screen, the
-// worse the main-thread stall.
 export const MathRenderer: React.FC<MathRendererProps> = React.memo(function MathRenderer({
   content,
   className = '',
 }) {
-  // Standardize LaTeX delimiters to $/$$ *before* wrapBareLatex runs. Without this,
-  // \( \) and \[ \] content isn't recognized by the "already-delimited" protection
-  // step below, so it falls into the bare-LaTeX word-wrapping heuristic and gets
-  // mangled (split token-by-token instead of treated as one math expression).
   let preprocessed = content
 
   const codeSpans: string[] = []
@@ -249,9 +225,6 @@ export const MathRenderer: React.FC<MathRendererProps> = React.memo(function Mat
         remarkPlugins={[remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
-          // Tailwind's Preflight reset strips list-style/margins from ul/ol/li by
-          // default, so without these overrides markdown lists render as plain,
-          // unmarked, unindented text.
           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
           ul: ({ children }) => (
             <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>

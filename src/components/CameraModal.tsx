@@ -91,7 +91,6 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
   return (
     <div className="bg-background/80 animate-fade-in-up fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
       <div className="bg-card border-border relative w-full max-w-2xl overflow-hidden rounded-3xl border shadow-[0_16px_64px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_16px_64px_-12px_rgba(0,0,0,0.5)]">
-        {/* Header */}
         <div className="border-border/50 bg-card/50 flex items-center justify-between border-b p-5">
           <div className="flex items-center gap-2">
             <div className="bg-primary-500/10 rounded-xl p-2">
@@ -110,7 +109,6 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
           </button>
         </div>
 
-        {/* Viewfinder */}
         <div className="relative flex aspect-4/3 items-center justify-center overflow-hidden bg-black/5 dark:bg-black/40">
           {error ? (
             <div className="flex flex-col items-center gap-3 p-6 text-center">
@@ -131,7 +129,6 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
             />
           )}
 
-          {/* Viewfinder Frame Overlay (Rule of Thirds) */}
           {!error && stream && (
             <div className="pointer-events-none absolute inset-0 opacity-20">
               <div className="absolute top-1/3 left-0 h-px w-full bg-white" />
@@ -142,7 +139,6 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
           )}
         </div>
 
-        {/* Controls */}
         <div className="bg-card border-border/50 flex items-center justify-center border-t p-6">
           <button
             onClick={capturePhoto}

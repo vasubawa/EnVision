@@ -10,7 +10,7 @@ import { MathRenderer } from './MathRenderer'
 import { ChatEntry } from '@/types/feedback'
 import { toast } from 'sonner'
 
-type ChatMessageMetadata = { createdAt?: number }
+type ChatMessageMetadata = { createdAt?: number; canvasTranscription?: string }
 type ChatMessage = UIMessage<ChatMessageMetadata>
 
 function getMessageText(message: ChatMessage): string {
@@ -36,16 +36,20 @@ export function TutorChat({
     is_correct: boolean | null
   }
 
-  const { chatHistory, addChatEntry, setChatHistory, getCanvasImage } = useWorkspaceStore()
+  const {
+    chatHistory,
+    addChatEntry,
+    setChatHistory,
+    getCanvasImage,
+    canvasTranscription,
+    setCanvasTranscription,
+  } = useWorkspaceStore()
   const lastCanvasUpdate = useWorkspaceStore((s) => s.lastCanvasUpdate)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [input, setInput] = useState('')
   const lastAnalyzedRef = useRef<number>(0)
-  // Track the canvas timestamp at the time of the last vision call so we can
-  // skip re-transcription when nothing new has been drawn.
   const lastVisionCanvasRef = useRef<number>(0)
 
-  // Initialize feedback messages from DB
   useEffect(() => {
     const feedbackMessages = (initialMessages as DBMessage[])
       .filter((m) => m.kind === 'feedback')
@@ -60,7 +64,6 @@ export function TutorChat({
     setChatHistory(feedbackMessages)
   }, [initialMessages, setChatHistory])
 
-  // Extract initial chat messages for useChat
   const initialChatMessages: ChatMessage[] = useMemo(() => {
     return (initialMessages as DBMessage[])
       .filter((m) => m.kind === 'chat')
@@ -81,17 +84,16 @@ export function TutorChat({
     transport,
     messages: initialChatMessages,
     onError: (err: Error) => toast.error(err.message),
+    onFinish: ({ message }) => {
+      if (message.metadata?.canvasTranscription) {
+        setCanvasTranscription(message.metadata.canvasTranscription)
+      }
+    },
   })
   const isLoading = status === 'submitted' || status === 'streaming'
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Combine automated feedback and chat messages, sorted by time.
-  // Timestamps for chat messages come from `metadata.createdAt`, stamped
-  // client-side at send time and server-side at stream start (see
-  // handleCustomSubmit and /api/chat's messageMetadata option) rather than
-  // computed here — React Compiler forbids impure calls like Date.now()
-  // during render.
   const allEntries = useMemo(() => {
     const aiMessages: ChatEntry[] = messages
       .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -108,7 +110,6 @@ export function TutorChat({
     return combined
   }, [chatHistory, messages])
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -125,13 +126,32 @@ export function TutorChat({
       return
     }
 
-    // Only ask the API to run vision if the canvas changed since our last call.
-    const canvasChanged = lastCanvasUpdate > lastVisionCanvasRef.current
-    if (canvasChanged) lastVisionCanvasRef.current = lastCanvasUpdate
+    const hasExistingTranscription = !!canvasTranscription
+    const canvasChanged =
+      !hasExistingTranscription || lastCanvasUpdate > lastVisionCanvasRef.current
+
+    if (canvasChanged) {
+      lastVisionCanvasRef.current = lastCanvasUpdate || Date.now()
+    }
+
+    const recentFeedback = chatHistory
+      .filter((entry) => entry.type === 'feedback')
+      .slice(-4)
+      .map((f) => ({
+        content: f.content,
+        isCorrect: f.isCorrect ?? false,
+      }))
 
     sendMessage(
       { text: input, metadata: { createdAt: Date.now() } },
-      { body: { canvasBase64, canvasChanged } },
+      {
+        body: {
+          canvasBase64: canvasChanged ? canvasBase64 : undefined,
+          canvasChanged,
+          cachedTranscription: canvasTranscription || undefined,
+          recentFeedback,
+        },
+      },
     )
     setInput('')
   }
@@ -149,8 +169,15 @@ export function TutorChat({
         body: JSON.stringify({ canvasBase64, workspaceId }),
       })
 
-      if (!res.ok) throw new Error('Analysis failed')
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || 'Analysis failed. Please try again.')
+      }
+
+      if (data.canvasTranscription) {
+        setCanvasTranscription(data.canvasTranscription)
+        lastVisionCanvasRef.current = lastCanvasUpdate || Date.now()
+      }
 
       addChatEntry({
         id: data.id || Math.random().toString(36).substring(7),
@@ -167,7 +194,7 @@ export function TutorChat({
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry, workspaceId])
+  }, [getCanvasImage, addChatEntry, workspaceId, lastCanvasUpdate, setCanvasTranscription])
 
   const handleDeepAnalysis = useCallback(async () => {
     if (!getCanvasImage) return
@@ -182,8 +209,15 @@ export function TutorChat({
         body: JSON.stringify({ canvasBase64, workspaceId }),
       })
 
-      if (!res.ok) throw new Error('Deep analysis failed')
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || 'Deep analysis failed. Please try again.')
+      }
+
+      if (data.canvasTranscription) {
+        setCanvasTranscription(data.canvasTranscription)
+        lastVisionCanvasRef.current = lastCanvasUpdate || Date.now()
+      }
 
       addChatEntry({
         id: data.id || Math.random().toString(36).substring(7),
@@ -200,7 +234,7 @@ export function TutorChat({
       setIsAnalyzing(false)
       lastAnalyzedRef.current = Date.now()
     }
-  }, [getCanvasImage, addChatEntry, workspaceId])
+  }, [getCanvasImage, addChatEntry, workspaceId, lastCanvasUpdate, setCanvasTranscription])
 
   return (
     <div className="relative flex h-full w-full flex-col bg-transparent">
@@ -208,7 +242,6 @@ export function TutorChat({
         ref={scrollRef}
         className="flex flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto scroll-smooth p-6"
       >
-        {/* Welcome message */}
         <div className="flex gap-4">
           <div className="bg-primary-500/10 border-primary-500/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
             <span className="text-primary-500 font-serif text-sm font-bold">AI</span>
@@ -221,7 +254,6 @@ export function TutorChat({
           </div>
         </div>
 
-        {/* Hybrid Feed */}
         {allEntries.map((entry) => (
           <div
             key={entry.id}
@@ -258,7 +290,6 @@ export function TutorChat({
           </div>
         ))}
 
-        {/* Loading Indicator */}
         {(isLoading || isAnalyzing) && (
           <div className="flex gap-4">
             <div className="bg-primary-500/10 border-primary-500/20 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
@@ -273,7 +304,6 @@ export function TutorChat({
       </div>
 
       <div className="bg-card/95 border-border flex shrink-0 flex-col gap-3 border-t p-4 backdrop-blur-md">
-        {/* Quick Actions */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <button
@@ -296,7 +326,6 @@ export function TutorChat({
           </div>
         </div>
 
-        {/* Chat Input */}
         <form onSubmit={handleCustomSubmit} className="relative">
           <input
             type="text"
