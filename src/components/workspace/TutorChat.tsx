@@ -43,6 +43,7 @@ export function TutorChat({
     getCanvasImage,
     canvasTranscription,
     setCanvasTranscription,
+    learningPreferences,
   } = useWorkspaceStore()
   const lastCanvasUpdate = useWorkspaceStore((s) => s.lastCanvasUpdate)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -150,6 +151,7 @@ export function TutorChat({
           canvasChanged,
           cachedTranscription: canvasTranscription || undefined,
           recentFeedback,
+          learningPreferences,
         },
       },
     )
@@ -240,7 +242,9 @@ export function TutorChat({
     <div className="relative flex h-full w-full flex-col bg-transparent">
       <div
         ref={scrollRef}
-        className="flex flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto scroll-smooth p-6"
+        className={`flex flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto p-6 ${
+          learningPreferences.calm ? '' : 'scroll-smooth'
+        }`}
       >
         <div className="flex gap-4">
           <div className="bg-primary-500/10 border-primary-500/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
@@ -269,7 +273,9 @@ export function TutorChat({
               className={`flex max-w-[85%] min-w-0 flex-col ${entry.role === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`min-w-0 overflow-x-auto text-[15px] leading-relaxed wrap-break-word ${
+                className={`min-w-0 overflow-x-auto ${
+                  learningPreferences.largeText ? 'text-[17px]' : 'text-[15px]'
+                } leading-relaxed wrap-break-word ${
                   entry.role === 'user'
                     ? 'bg-foreground/5 text-foreground rounded-2xl rounded-tr-sm px-4 py-2.5'
                     : entry.type === 'feedback'
@@ -324,6 +330,26 @@ export function TutorChat({
               Deep analysis
             </button>
           </div>
+          {allEntries.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <button
+                type="button"
+                disabled={isAnalyzing || isLoading}
+                onClick={() => setInput('Can you explain that another way?')}
+                className="bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground shrink-0 rounded-full px-2.5 py-1 transition-colors disabled:opacity-50"
+              >
+                💡 Explain another way
+              </button>
+              <button
+                type="button"
+                disabled={isAnalyzing || isLoading}
+                onClick={() => setInput('Can you give me a smaller, simpler hint?')}
+                className="bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground shrink-0 rounded-full px-2.5 py-1 transition-colors disabled:opacity-50"
+              >
+                🔍 Simpler hint
+              </button>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleCustomSubmit} className="relative">

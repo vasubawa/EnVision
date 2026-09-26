@@ -11,6 +11,7 @@ const Whiteboard = dynamic(
 )
 import { TutorChat } from '@/components/workspace/TutorChat'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { LearningControls } from '@/components/workspace/LearningControls'
 
 interface Workspace {
   id: string
@@ -155,7 +156,8 @@ export default function WorkspaceClient({
             </button>
           )}
         </div>
-        <div className="flex w-10 items-center justify-end sm:w-16">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2">
+          <LearningControls />
           <ThemeToggle />
         </div>
       </header>

@@ -26,6 +26,34 @@ interface WorkspaceState {
 
   lastTranscribedCanvasUpdate: number
   setLastTranscribedCanvasUpdate: (timestamp: number) => void
+
+  learningPreferences: LearningPreferences
+  setLearningPreferences: (patch: Partial<LearningPreferences>) => void
+}
+
+export interface LearningPreferences {
+  oneStep: boolean
+  shortReplies: boolean
+  calm: boolean
+  largeText: boolean
+}
+
+export const DEFAULT_LEARNING_PREFERENCES: LearningPreferences = {
+  oneStep: true,
+  shortReplies: true,
+  calm: false,
+  largeText: false,
+}
+
+function loadInitialPreferences(): LearningPreferences {
+  if (typeof window === 'undefined') return DEFAULT_LEARNING_PREFERENCES
+  try {
+    const raw = localStorage.getItem('envision.learning.v1')
+    if (raw) return { ...DEFAULT_LEARNING_PREFERENCES, ...JSON.parse(raw) }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_LEARNING_PREFERENCES
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -53,4 +81,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   lastTranscribedCanvasUpdate: 0,
   setLastTranscribedCanvasUpdate: (timestamp) => set({ lastTranscribedCanvasUpdate: timestamp }),
+
+  learningPreferences: loadInitialPreferences(),
+  setLearningPreferences: (patch) =>
+    set((state) => {
+      const updated = { ...state.learningPreferences, ...patch }
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('envision.learning.v1', JSON.stringify(updated))
+        } catch {
+          /* ignore */
+        }
+      }
+      return { learningPreferences: updated }
+    }),
 }))

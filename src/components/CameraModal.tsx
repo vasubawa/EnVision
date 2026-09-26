@@ -25,8 +25,6 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
       navigator.mediaDevices
         .getUserMedia({ video: { facingMode: 'environment' } })
         .then((mediaStream) => {
-          // The modal may have already closed while getUserMedia was pending —
-          // stop the just-granted stream immediately instead of leaking it.
           if (cancelled) {
             mediaStream.getTracks().forEach((track) => track.stop())
             return

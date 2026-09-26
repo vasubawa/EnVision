@@ -8,8 +8,11 @@ Jump straight in anonymously, or sign up to save your work and pick up where you
 
 ## Features
 
-- **Instant Workspaces**: Start learning immediately — no account required. Drop in a PDF, image, or snap a photo of your homework with the built-in camera.
-- **Socratic AI Tutor**: Two analysis modes: a quick check and a deep analysis. The AI reads your whiteboard via vision, then asks guiding questions rather than giving answers. Full chat is also available.
+- **Instant Workspaces**: Start learning immediately — no account required. Drop in a PDF, image, snap a photo with the built-in camera, or paste a screenshot directly onto the canvas with `Ctrl+V` / `⌘V`.
+- **Socratic AI Tutor**: Two evaluation modes: a quick check and a deep analysis. The AI reads your whiteboard via vision, then asks guiding questions rather than giving answers. Full interactive chat is also available.
+- **Unified Cross-Agent Memory**: The tutor retains awareness of your whiteboard state and previous evaluator feedback across your entire session, seamlessly answering follow-ups like _"Where is my mistake?"_ without redundant Vision API calls.
+- **Learning Tools & Pacing Controls**: Tailor the tutor to your learning style with "One step at a time" micro-hints, short explanations, larger reading text, calm motion (reduced distractions), and 1-click prompt chips (`💡 Explain another way`, `🔍 Simpler hint`).
+- **Direct Clipboard Paste & Drag-and-Drop**: Copy any problem screenshot from your browser or textbook and press `Ctrl+V` (or `⌘V`) to paste it right onto the whiteboard, or drag and drop image/PDF files directly onto the canvas.
 - **LaTeX Rendering**: All AI responses render math using KaTeX — inline and block expressions, fractions, integrals, chemistry notation, and more.
 - **Freehand Whiteboard**: Pen, eraser, shapes (rectangle, circle, line), text tool, color palette, undo/redo, grid toggle, and canvas download. Built on Fabric.js.
 - **File Uploads**: PDF and image support (PNG, JPG, WEBP). Pages are rendered onto the canvas via PDF.js.

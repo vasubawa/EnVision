@@ -5,6 +5,7 @@ import { useWorkspaceStore } from '@/store/useWorkspaceStore'
 import { useTheme } from 'next-themes'
 import * as fabric from 'fabric'
 import * as pdfjsLib from 'pdfjs-dist'
+import { toast } from 'sonner'
 import { Toolbar, DrawingMode, BrushColor, BrushSize } from './Toolbar'
 
 // Same-origin worker from /public (copied from pdfjs-dist; must match installed version).
@@ -151,6 +152,86 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     },
     [saveHistory],
   )
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest('input, textarea, [contenteditable="true"]')
+      ) {
+        return
+      }
+
+      const items = Array.from(event.clipboardData?.items ?? [])
+      const imageItem = items.find((item) => item.type.startsWith('image/'))
+
+      if (imageItem) {
+        const file = imageItem.getAsFile()
+        if (file) {
+          event.preventDefault()
+          handleAddFile(file)
+          toast.success('Screenshot pasted onto canvas!')
+          return
+        }
+      }
+
+      const textData = event.clipboardData?.getData('text/plain')
+      if (textData && textData.trim() && fabricRef.current) {
+        event.preventDefault()
+        const canvas = fabricRef.current
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0]
+        const centerX = (-vpt[4] + (canvas.width || 800) / 2) / (vpt[0] || 1)
+        const centerY = (-vpt[5] + (canvas.height || 600) / 2) / (vpt[3] || 1)
+
+        const text = new fabric.IText(textData.trim(), {
+          left: centerX - 100,
+          top: centerY - 20,
+          fill: color,
+          fontSize: 20,
+          fontFamily: 'var(--font-sans)',
+        })
+        canvas.add(text)
+        canvas.setActiveObject(text)
+        canvas.requestRenderAll()
+        saveHistory()
+        toast.success('Text pasted onto canvas!')
+      }
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [handleAddFile, color, saveHistory])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault()
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy'
+      }
+    }
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault()
+      const files = Array.from(e.dataTransfer?.files ?? [])
+      const fileToLoad = files.find(
+        (f) => f.type.startsWith('image/') || f.type === 'application/pdf',
+      )
+      if (fileToLoad) {
+        handleAddFile(fileToLoad)
+        toast.success('File dropped onto canvas!')
+      }
+    }
+
+    container.addEventListener('dragover', handleDragOver)
+    container.addEventListener('drop', handleDrop)
+    return () => {
+      container.removeEventListener('dragover', handleDragOver)
+      container.removeEventListener('drop', handleDrop)
+    }
+  }, [handleAddFile])
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return

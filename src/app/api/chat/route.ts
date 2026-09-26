@@ -34,12 +34,20 @@ const recentFeedbackSchema = z.object({
   isCorrect: z.boolean(),
 })
 
+const learningPreferencesSchema = z.object({
+  oneStep: z.boolean().optional(),
+  shortReplies: z.boolean().optional(),
+  calm: z.boolean().optional(),
+  largeText: z.boolean().optional(),
+})
+
 const chatBodySchema = z.object({
   messages: z.array(uiMessageSchema).min(1).max(MAX_MESSAGES),
   canvasBase64: z.string().optional(),
   canvasChanged: z.boolean().optional().default(true),
   cachedTranscription: z.string().optional(),
   recentFeedback: z.array(recentFeedbackSchema).optional(),
+  learningPreferences: learningPreferencesSchema.optional(),
   ocrText: z.string().optional(),
 })
 
@@ -73,15 +81,28 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Messages are required.' }), { status: 400 })
     }
 
-    const { messages, canvasBase64, canvasChanged, cachedTranscription, recentFeedback, ocrText } =
-      parsed.data as {
-        messages: UIMessage[]
-        canvasBase64?: string
-        canvasChanged: boolean
-        cachedTranscription?: string
-        recentFeedback?: { content: string; isCorrect: boolean }[]
-        ocrText?: string
+    const {
+      messages,
+      canvasBase64,
+      canvasChanged,
+      cachedTranscription,
+      recentFeedback,
+      learningPreferences,
+      ocrText,
+    } = parsed.data as {
+      messages: UIMessage[]
+      canvasBase64?: string
+      canvasChanged: boolean
+      cachedTranscription?: string
+      recentFeedback?: { content: string; isCorrect: boolean }[]
+      learningPreferences?: {
+        oneStep?: boolean
+        shortReplies?: boolean
+        calm?: boolean
+        largeText?: boolean
       }
+      ocrText?: string
+    }
 
     for (const message of messages) {
       if (getMessageText(message).length > MAX_MESSAGE_CHARS) {
@@ -108,6 +129,14 @@ export async function POST(req: NextRequest) {
         )
         .join('\n')
       systemPrompt += `\n\nRecent whiteboard evaluations from your assistant checks:\n${feedbackBullets}\nDirectly connect your responses to these evaluations if the student asks for clarification or guidance on their mistakes.`
+    }
+
+    if (learningPreferences?.oneStep) {
+      systemPrompt += `\n\nSTRICT PACING RULE (One step at a time enabled): Give ONLY the immediate single micro-step or ask ONE focused question. Never reveal subsequent steps or solve ahead.`
+    }
+
+    if (learningPreferences?.shortReplies) {
+      systemPrompt += `\n\nSTRICT LENGTH RULE (Short explanations enabled): Keep your response extremely brief: 1-2 concise sentences maximum.`
     }
 
     let activeTranscription = cachedTranscription?.trim() || null
