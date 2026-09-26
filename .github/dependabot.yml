@@ -4,16 +4,28 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
-    open-pull-requests-limit: 10
+      day: 'monday'
+    open-pull-requests-limit: 2
     commit-message:
       prefix: 'chore(deps)'
     # Keep lockfile in sync with package.json (required for pnpm --frozen-lockfile CI)
     versioning-strategy: increase
+    # Group ALL npm updates (including majors) into one PR
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
 
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
-    open-pull-requests-limit: 5
+      day: 'monday'
+    open-pull-requests-limit: 1
     commit-message:
       prefix: 'chore(deps)'
+    # Group all Actions updates into one PR too
+    groups:
+      all-actions:
+        patterns:
+          - '*'

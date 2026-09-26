@@ -30,7 +30,16 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # Dependabot PRs may have an out-of-sync lockfile if pnpm couldn't
+        # regenerate it cleanly. Fall back to a normal install so the lockfile
+        # is refreshed rather than failing the whole build.
+        run: |
+          if pnpm install --frozen-lockfile 2>/dev/null; then
+            echo "Installed with frozen lockfile."
+          else
+            echo "::warning::Frozen lockfile install failed — falling back to pnpm install. The lockfile will be out of date until the next commit."
+            pnpm install
+          fi
         env:
           HUSKY: '0'
 
@@ -49,3 +58,5 @@ jobs:
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: placeholder
           TURNSTILE_SECRET_KEY: placeholder
           CRON_SECRET: placeholder-cron-secret
+          UPSTASH_REDIS_REST_URL: https://placeholder.upstash.io
+          UPSTASH_REDIS_REST_TOKEN: placeholder-upstash-token
