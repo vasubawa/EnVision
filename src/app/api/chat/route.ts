@@ -32,6 +32,9 @@ const uiMessageSchema = z
 const chatBodySchema = z.object({
   messages: z.array(uiMessageSchema).min(1).max(MAX_MESSAGES),
   canvasBase64: z.string().optional(),
+  // True only when the canvas has changed since the last message.
+  // Skipping vision on unchanged canvases saves ~5-20s per follow-up question.
+  canvasChanged: z.boolean().optional().default(true),
 })
 
 function getMessageText(message: UIMessage): string {
@@ -64,9 +67,10 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Messages are required.' }), { status: 400 })
     }
 
-    const { messages, canvasBase64 } = parsed.data as {
+    const { messages, canvasBase64, canvasChanged } = parsed.data as {
       messages: UIMessage[]
       canvasBase64?: string
+      canvasChanged: boolean
     }
 
     for (const message of messages) {
@@ -82,8 +86,9 @@ export async function POST(req: NextRequest) {
     let systemPrompt =
       "You are a helpful Socratic tutor. Guide the student using hints and questions. Keep replies SHORT: 2-4 sentences, or at most one short list of 3-4 items — never a multi-part outline covering several problems or steps at once. Ask ONE focused question at a time and wait for the student's answer before asking the next. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed ONLY in $ for inline and $$ for blocks — NEVER use \\\\( \\\\) or \\\\[ \\\\] delimiters. Write each formula EXACTLY ONCE: never restate, re-derive, or 'spell out' a formula a second time in different notation, and never break a formula or sentence into one word per line. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\\\int$ instead of int, $\\\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O. When listing a few short items, format them as a markdown list using '- ' or '1. ' rather than separate plain lines — this renders as a proper bulleted/numbered list."
 
-    // If a canvas image was sent, transcribe it first so the tutor can "see" it
-    if (canvasBase64) {
+    // Only transcribe when the canvas has new content — skips the expensive
+    // vision call for follow-up questions where the student hasn't drawn anything new.
+    if (canvasBase64 && canvasChanged) {
       const visionAbort = new AbortController()
       let visionTimeout: NodeJS.Timeout | null = null
       try {
@@ -141,11 +146,11 @@ export async function POST(req: NextRequest) {
       baseURL: MODELS.reasoning.apiBase,
     })
 
-    // Optimistically save the user message
+    // Save the user message. Do NOT forward the client-generated id —
+    // let Supabase assign its own UUID to avoid RLS/constraint conflicts.
     const lastMessage = messages[messages.length - 1]
     if (lastMessage.role === 'user') {
       const { error: insertError } = await access.supabase.from('messages').insert({
-        id: lastMessage.id,
         workspace_id: access.workspaceId,
         role: 'user',
         kind: 'chat',
@@ -155,7 +160,8 @@ export async function POST(req: NextRequest) {
       if (insertError) {
         // eslint-disable-next-line no-console
         console.error('Failed to save user message:', insertError)
-        return new Response(JSON.stringify({ error: 'Failed to save message' }), { status: 500 })
+        // Don't block the user — log and continue. The AI response is more
+        // important than persistence; the message is already in client state.
       }
     }
 

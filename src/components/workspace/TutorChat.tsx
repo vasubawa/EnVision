@@ -37,9 +37,13 @@ export function TutorChat({
   }
 
   const { chatHistory, addChatEntry, setChatHistory, getCanvasImage } = useWorkspaceStore()
+  const lastCanvasUpdate = useWorkspaceStore((s) => s.lastCanvasUpdate)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [input, setInput] = useState('')
   const lastAnalyzedRef = useRef<number>(0)
+  // Track the canvas timestamp at the time of the last vision call so we can
+  // skip re-transcription when nothing new has been drawn.
+  const lastVisionCanvasRef = useRef<number>(0)
 
   // Initialize feedback messages from DB
   useEffect(() => {
@@ -121,7 +125,14 @@ export function TutorChat({
       return
     }
 
-    sendMessage({ text: input, metadata: { createdAt: Date.now() } }, { body: { canvasBase64 } })
+    // Only ask the API to run vision if the canvas changed since our last call.
+    const canvasChanged = lastCanvasUpdate > lastVisionCanvasRef.current
+    if (canvasChanged) lastVisionCanvasRef.current = lastCanvasUpdate
+
+    sendMessage(
+      { text: input, metadata: { createdAt: Date.now() } },
+      { body: { canvasBase64, canvasChanged } },
+    )
     setInput('')
   }
 
