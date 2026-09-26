@@ -3,14 +3,21 @@ updates:
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'weekly'
-      day: 'monday'
-    open-pull-requests-limit: 2
+      interval: 'daily'
+    open-pull-requests-limit: 25
     commit-message:
       prefix: 'chore(deps)'
-    # Keep lockfile in sync with package.json (required for pnpm --frozen-lockfile CI)
+    # Keep lockfile in sync with package.json
     versioning-strategy: increase
-    # Group ALL npm updates (including majors) into one PR
+    # Rebase and push new commits to existing open PRs
+    rebase-strategy: auto
+    # Block breaking majors that lack ecosystem support (TS 7 rewritten in Go breaks typescript-eslint, ESLint 10 breaks eslint-config-next)
+    ignore:
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+    # Group all npm updates into one PR
     groups:
       all-dependencies:
         patterns:
@@ -19,12 +26,12 @@ updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
-      interval: 'weekly'
-      day: 'monday'
-    open-pull-requests-limit: 1
+      interval: 'daily'
+    open-pull-requests-limit: 10
     commit-message:
       prefix: 'chore(deps)'
-    # Group all Actions updates into one PR too
+    rebase-strategy: auto
+    # Group all Actions updates into one PR
     groups:
       all-actions:
         patterns:
