@@ -23,7 +23,7 @@ export function ThemeToggle() {
     const x = e.clientX
     const y = e.clientY
     const endRadius =
-      Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) + 48
+      Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) * 1.2
     const root = document.documentElement
     root.style.setProperty('--tx', `${x}px`)
     root.style.setProperty('--ty', `${y}px`)

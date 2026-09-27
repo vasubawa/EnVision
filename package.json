@@ -10,7 +10,7 @@
     "fix": "eslint --fix . && prettier --write .",
     "prepare": "husky",
     "postinstall": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\" && node scripts/prepare-ocr.mjs",
-    "test": "node --experimental-strip-types --test src/lib/mathCheck.test.ts src/lib/units.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/mathCheck.test.ts src/lib/units.test.ts src/lib/boardStep.test.ts",
     "db:push": "supabase db push"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "katex": "^0.18.7",
     "lucide-react": "^1.47.0",
     "mathjs": "^15.2.0",
+    "modern-screenshot": "^4.7.0",
     "next": "^16.3.6",
     "next-themes": "^0.4.6",
     "pdfjs-dist": "^6.3.289",

@@ -15,7 +15,6 @@ import { EnVisionMark } from '@/components/EnVisionMark'
 import { LearningControls } from '@/components/workspace/LearningControls'
 import { LiveTutor } from '@/components/workspace/LiveTutor'
 import { EquationGraph, firstPlottable } from '@/components/workspace/EquationGraph'
-import { PrintedProblemChip } from '@/components/workspace/PrintedProblemChip'
 
 interface Workspace {
   id: string
@@ -40,6 +39,12 @@ export default function WorkspaceClient({
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   const { lastCanvasUpdate, getCanvasJson, canvasTranscription, ocrText } = useWorkspaceStore()
+  const printedStatus = useWorkspaceStore((state) => state.printedRead?.status)
+  const [trackedRead, setTrackedRead] = useState(printedStatus)
+  if (printedStatus !== trackedRead) {
+    setTrackedRead(printedStatus)
+    if (printedStatus === 'reading') setIsChatOpen(true)
+  }
   const [graphOpen, setGraphOpen] = useState(false)
   const supabase = createClient()
 
@@ -121,8 +126,8 @@ export default function WorkspaceClient({
   }, [isEditingTitle])
 
   return (
-    <div className="text-foreground flex h-[100dvh] w-full flex-col overflow-hidden bg-transparent">
-      <header className="border-border/50 bg-background/50 z-40 flex h-11 shrink-0 items-center justify-between border-b px-4 backdrop-blur-md sm:h-14">
+    <div className="text-foreground flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <header className="border-border bg-background z-40 flex h-14 shrink-0 items-center justify-between border-b px-4">
         <div className="w-10 sm:w-16" />
         <div className="flex items-center justify-center gap-2">
           {isEditingTitle ? (
@@ -178,9 +183,8 @@ export default function WorkspaceClient({
       </header>
 
       <main className="relative flex flex-1 overflow-hidden">
-        <div className="relative h-full w-full bg-white dark:bg-black/20">
+        <div className="relative h-full w-full">
           <Whiteboard initialCanvasState={initialCanvasState} workspaceId={workspace.id} />
-          <PrintedProblemChip />
           {graphOpen ? (
             <EquationGraph
               initial={firstPlottable(canvasTranscription || ocrText)}
@@ -201,7 +205,7 @@ export default function WorkspaceClient({
             className={[
               'fixed inset-x-0 bottom-0 z-50 flex flex-col transition-all duration-300 ease-in-out',
               'sm:absolute sm:inset-x-auto sm:right-6 sm:bottom-[5.5rem] sm:w-[420px] sm:max-w-[calc(100vw-3rem)]',
-              'shadow-2xl',
+              '',
               isChatOpen
                 ? 'pointer-events-auto translate-y-0 opacity-100'
                 : 'pointer-events-none translate-y-full opacity-0 sm:translate-y-8 sm:opacity-0',
@@ -210,8 +214,8 @@ export default function WorkspaceClient({
               height: 'min(calc(100dvh - 5rem), 680px)',
             }}
           >
-            <div className="bg-card border-border/50 flex h-full flex-col overflow-hidden rounded-t-2xl border shadow-2xl backdrop-blur-xl sm:rounded-2xl">
-              <div className="bg-card/80 border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5 backdrop-blur-md sm:py-3">
+            <div className="bg-card border-border flex h-full flex-col overflow-hidden rounded-t-2xl border sm:rounded-2xl">
+              <div className="border-border flex shrink-0 items-center justify-between border-b px-4 py-2.5 sm:py-3">
                 <div className="flex items-center gap-2">
                   <EnVisionMark className="text-primary-500 h-4 w-4" />
                   <span className="font-serif text-sm font-medium">Tutor</span>
@@ -234,9 +238,9 @@ export default function WorkspaceClient({
         <button
           onClick={() => setIsChatOpen((v) => !v)}
           className={[
-            'absolute right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full text-white shadow-xl',
-            'bg-primary-500 hover:bg-primary-600 shadow-primary-500/25',
-            'transition-all duration-200 hover:scale-105 active:scale-95',
+            'focus-visible:outline-foreground absolute right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full text-white',
+            'bg-primary-500 hover:bg-primary-600',
+            'transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
             'bottom-24 sm:right-6 sm:bottom-6 sm:h-14 sm:w-14',
           ].join(' ')}
           aria-label={isChatOpen ? 'Close tutor' : 'Open tutor'}

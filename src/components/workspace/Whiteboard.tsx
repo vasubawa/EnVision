@@ -7,6 +7,7 @@ import * as fabric from 'fabric'
 import * as pdfjsLib from 'pdfjs-dist'
 import { toast } from 'sonner'
 import { Toolbar, DrawingMode, BrushColor, BrushSize } from './Toolbar'
+import { addTutorStep } from './placeTutorMath'
 import { readProblemImage } from '@/lib/ocr/readPrinted'
 
 // Same-origin worker from /public (copied from pdfjs-dist; must match installed version).
@@ -34,6 +35,7 @@ export function Whiteboard({
     setGetCanvasJson,
     setLastCanvasUpdate,
     setPrintedRead,
+    setPlaceTutorStep,
     highlightToken,
   } = useWorkspaceStore()
   const { resolvedTheme } = useTheme()
@@ -153,7 +155,7 @@ export function Whiteboard({
               )
 
               img.scale(scale)
-              canvas.centerObject(img)
+              canvas.viewportCenterObject(img)
 
               canvas.add(img)
               saveHistory()
@@ -198,7 +200,7 @@ export function Whiteboard({
             )
 
             img.scale(scale)
-            canvas.centerObject(img)
+            canvas.viewportCenterObject(img)
             canvas.add(img)
             saveHistory()
           } catch (err) {
@@ -247,7 +249,7 @@ export function Whiteboard({
           top: centerY - 20,
           fill: color,
           fontSize: pageUnits(canvas, 20),
-          fontFamily: 'var(--font-sans)',
+          fontFamily: 'Georgia, serif',
         })
         canvas.add(text)
         canvas.setActiveObject(text)
@@ -311,14 +313,14 @@ export function Whiteboard({
         : []
       pages.forEach((object) => object.set('visible', false))
       const maxDim = Math.max(canvas.width || 800, canvas.height || 600)
-      const multiplier = Math.min(1, 1280 / maxDim)
+      const multiplier = Math.min(1, 1024 / maxDim)
       const isDark = document.documentElement.classList.contains('dark')
       const prevBg = canvas.backgroundColor
       canvas.backgroundColor = isDark ? '#18181b' : '#ffffff'
       canvas.renderAll()
       const dataUrl = canvas.toDataURL({
         format: 'jpeg',
-        quality: 0.75,
+        quality: 0.6,
         multiplier,
       })
       canvas.backgroundColor = prevBg
@@ -333,6 +335,20 @@ export function Whiteboard({
     setGetCanvasJson(() => {
       if (!fabricRef.current) return null
       return JSON.stringify(fabricRef.current.toJSON())
+    })
+
+    setPlaceTutorStep((raw: string) => {
+      const board = fabricRef.current
+      if (!board) return
+      void addTutorStep(board, raw).then((step) => {
+        if (!step || fabricRef.current !== board) return
+        setHasSelection(true)
+        document.documentElement.setAttribute('data-draw-mode', 'select')
+        board.isDrawingMode = false
+        board.selection = true
+        setMode('select')
+        saveHistory()
+      })
     })
 
     const brush = new fabric.PencilBrush(canvas)
@@ -388,7 +404,7 @@ export function Whiteboard({
       ctx.save()
       ctx.beginPath()
       const isDark = document.documentElement.classList.contains('dark')
-      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.09)'
+      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(28, 25, 23, 0.32)'
 
       for (let x = offsetX - screenStep; x < canvas.width! + screenStep; x += screenStep) {
         for (let y = offsetY - screenStep; y < canvas.height! + screenStep; y += screenStep) {
@@ -423,7 +439,10 @@ export function Whiteboard({
         }
       } else {
         let zoom = canvas.getZoom()
-        zoom *= 0.995 ** e.deltaY
+        let dy = e.deltaY
+        if (e.deltaMode === 1) dy *= 100
+        if (e.deltaMode === 2) dy *= 800
+        zoom *= 1.06 ** (-dy / 100)
         if (zoom > 50) zoom = 50
         if (zoom < 0.05) zoom = 0.05
         canvas.zoomToPoint(new fabric.Point(e.offsetX, e.offsetY), zoom)
@@ -444,6 +463,58 @@ export function Whiteboard({
     let shapeObj: fabric.Object | null = null
     let origX = 0,
       origY = 0
+
+    const openStepSource = (target: fabric.FabricObject) => {
+      const source = target.get('tutorSource')
+      if (typeof source !== 'string') return
+      if (target instanceof fabric.IText) {
+        canvas.setActiveObject(target)
+        target.enterEditing()
+        target.hiddenTextarea?.focus()
+        return
+      }
+      const point = target.getPointByOrigin('center', 'top')
+      canvas.remove(target)
+      const editor = new fabric.IText(source, {
+        originX: 'center',
+        originY: 'top',
+        fill: '#C05621',
+        fontSize: pageUnits(canvas, 22),
+        fontFamily: 'Georgia, serif',
+        editable: true,
+        hasControls: false,
+        lockRotation: true,
+      })
+      editor.set('name', 'tutor-step-edit')
+      editor.set('tutorSource', source)
+      editor.setXY(point, 'center', 'top')
+      canvas.add(editor)
+      canvas.setActiveObject(editor)
+      editor.enterEditing()
+      editor.hiddenTextarea?.focus()
+      editor.on('editing:exited', () => {
+        const next = editor.text?.trim() ?? ''
+        const where = editor.getPointByOrigin('center', 'top')
+        canvas.remove(editor)
+        if (!next) {
+          canvas.requestRenderAll()
+          saveHistory()
+          return
+        }
+        void addTutorStep(canvas, next, where).then(() => {
+          if (fabricRef.current !== canvas) return
+          canvas.requestRenderAll()
+          saveHistory()
+        })
+      })
+    }
+
+    canvas.on('mouse:dblclick', (opt) => {
+      if (getMode() !== 'select') return
+      const target = opt.target
+      if (!target || target.get('name') !== 'tutor-step') return
+      openStepSource(target)
+    })
 
     canvas.on('mouse:down', function (opt) {
       const evt = opt.e as MouseEvent | TouchEvent
@@ -471,16 +542,26 @@ export function Whiteboard({
       }
 
       if (currentMode === 'text') {
-        if (opt.target && (opt.target.type === 'i-text' || opt.target.type === 'text')) {
+        const hit = opt.target
+        if (hit && (hit.type === 'itext' || hit.type === 'textbox' || hit.type === 'text')) {
+          if (hit instanceof fabric.IText) {
+            canvas.setActiveObject(hit)
+            hit.enterEditing()
+            hit.hiddenTextarea?.focus()
+          }
           return
         }
+        if (hit?.get('name') === 'tutor-step') return
         const pointer = canvas.getScenePoint(evt)
         const text = new fabric.IText('', {
           left: pointer.x,
           top: pointer.y,
+          originX: 'left',
+          originY: 'top',
           fill: getColor(),
           fontSize: pageUnits(canvas, Math.max(20, getSize() * 5)),
-          fontFamily: 'var(--font-sans)',
+          fontFamily: 'Georgia, serif',
+          editable: true,
         })
         canvas.add(text)
         canvas.setActiveObject(text)
@@ -539,27 +620,39 @@ export function Whiteboard({
           shapeObj = new fabric.Rect({
             left: origX,
             top: origY,
+            originX: 'left',
+            originY: 'top',
             width: 0,
             height: 0,
             fill: 'transparent',
             stroke: currentColor,
             strokeWidth: pageUnits(canvas, currentSize),
             objectCaching: false,
+            selectable: false,
+            evented: false,
           })
         } else if (currentMode === 'circle') {
           shapeObj = new fabric.Circle({
             left: origX,
             top: origY,
+            originX: 'left',
+            originY: 'top',
             radius: 0,
             fill: 'transparent',
             stroke: currentColor,
             strokeWidth: pageUnits(canvas, currentSize),
             objectCaching: false,
+            selectable: false,
+            evented: false,
           })
         } else if (currentMode === 'line') {
           shapeObj = new fabric.Line([origX, origY, origX, origY], {
             stroke: currentColor,
             strokeWidth: pageUnits(canvas, currentSize),
+            originX: 'left',
+            originY: 'top',
+            selectable: false,
+            evented: false,
           })
         }
 
@@ -690,8 +783,10 @@ export function Whiteboard({
 
       if (shapeObj) {
         shapeObj.setCoords()
+        const box = shapeObj.getBoundingRect()
+        if (box.width < 4 && box.height < 4) canvas.remove(shapeObj)
+        else saveHistory()
         shapeObj = null
-        saveHistory()
       }
     }
 
@@ -699,7 +794,13 @@ export function Whiteboard({
     window.addEventListener('mouseup', handleMouseUp)
 
     canvas.on('object:modified', saveHistory)
-    canvas.on('path:created', saveHistory)
+    canvas.on('path:created', (event) => {
+      if ('path' in event && event.path instanceof fabric.FabricObject && getMode() !== 'select') {
+        event.path.evented = false
+        event.path.selectable = false
+      }
+      saveHistory()
+    })
 
     canvas.on('selection:created', () => setHasSelection(true))
     canvas.on('selection:updated', () => setHasSelection(true))
@@ -721,6 +822,7 @@ export function Whiteboard({
       window.removeEventListener('mouseup', handleMouseUp)
       canvas.dispose()
       fabricRef.current = null
+      setPlaceTutorStep(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, handleAddFile, saveHistory, setGetCanvasImage, setGetInkImage])
@@ -734,8 +836,19 @@ export function Whiteboard({
     if (!fabricRef.current) return
     const canvas = fabricRef.current
 
-    canvas.isDrawingMode = mode === 'draw' || mode === 'highlighter'
+    const drawing = mode === 'draw' || mode === 'highlighter'
+    const shaping = mode === 'rect' || mode === 'circle' || mode === 'line'
+    canvas.isDrawingMode = drawing
     canvas.selection = mode === 'select'
+    canvas.skipTargetFind = drawing || shaping || mode === 'pan'
+
+    canvas.forEachObject((object) => {
+      const editing = object.get('name') === 'tutor-step-edit'
+      const isText = object.type === 'itext' || object.type === 'textbox' || object.type === 'text'
+      object.evented =
+        mode === 'select' || mode === 'erase' || (mode === 'text' && isText) || editing
+      object.selectable = mode === 'select' || (mode === 'text' && isText) || editing
+    })
 
     if (canvas.freeDrawingBrush) {
       if (mode === 'highlighter') {

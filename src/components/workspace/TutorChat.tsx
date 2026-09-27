@@ -9,6 +9,7 @@ import { DefaultChatTransport, type UIMessage } from 'ai'
 import { MathRenderer } from './MathRenderer'
 import { ChatEntry } from '@/types/feedback'
 import { toast } from 'sonner'
+import { katexSource, shouldTypeset } from '@/lib/boardStep'
 
 type ChatMessageMetadata = { createdAt?: number; canvasTranscription?: string }
 type ChatMessage = UIMessage<ChatMessageMetadata>
@@ -46,6 +47,10 @@ export function TutorChat({
     setCanvasTranscription,
     learningPreferences,
     ocrText,
+    printedRead,
+    setPrintedRead,
+    requestHighlight,
+    placeTutorStep,
   } = useWorkspaceStore()
   const lastCanvasUpdate = useWorkspaceStore((s) => s.lastCanvasUpdate)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -91,6 +96,7 @@ export function TutorChat({
       if (message.metadata?.canvasTranscription) {
         setCanvasTranscription(message.metadata.canvasTranscription)
       }
+      requestHighlight()
     },
   })
   const isLoading = status === 'submitted' || status === 'streaming'
@@ -199,6 +205,7 @@ export function TutorChat({
         judgement: data.judgement,
         content: data.suggestion,
       })
+      if (data.judgement !== 'correct') requestHighlight()
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err))
       toast.error(error.message)
@@ -214,6 +221,7 @@ export function TutorChat({
     workspaceId,
     lastCanvasUpdate,
     setCanvasTranscription,
+    requestHighlight,
   ])
 
   const handleDeepAnalysis = useCallback(async () => {
@@ -248,6 +256,7 @@ export function TutorChat({
         judgement: data.judgement,
         content: data.suggestion,
       })
+      if (data.judgement !== 'correct') requestHighlight()
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err))
       toast.error(error.message)
@@ -263,7 +272,45 @@ export function TutorChat({
     workspaceId,
     lastCanvasUpdate,
     setCanvasTranscription,
+    requestHighlight,
   ])
+
+  const handleShowStep = async () => {
+    if (!getCanvasImage || isAnalyzing || isLoading) return
+    const canvasBase64 = (ocrText && getInkImage ? getInkImage() : getCanvasImage()) ?? null
+    if (!canvasBase64) return
+    setIsAnalyzing(true)
+    try {
+      const res = await fetch('/api/one-step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canvasBase64, workspaceId, problemText: ocrText || '' }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || typeof data?.step !== 'string') {
+        throw new Error(data?.error || 'Could not write one step. Try again.')
+      }
+      placeTutorStep?.(data.step)
+      requestHighlight()
+      const shown = shouldTypeset(katexSource(data.step))
+        ? `$${katexSource(data.step)}$`
+        : data.step
+      addChatEntry({
+        id: Math.random().toString(36).substring(7),
+        timestamp: Date.now(),
+        role: 'assistant',
+        type: 'feedback',
+        isCorrect: null,
+        judgement: 'progress',
+        content: shown,
+      })
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err))
+      toast.error(error.message)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
 
   return (
     <div className="relative flex h-full w-full flex-col bg-transparent">
@@ -273,6 +320,49 @@ export function TutorChat({
           learningPreferences.calm ? '' : 'scroll-smooth'
         }`}
       >
+        {printedRead ? (
+          <form
+            className="border-border bg-background max-w-[40rem] rounded-2xl border p-3"
+            aria-label="Uploaded problem"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium">Uploaded problem</p>
+              <button
+                type="button"
+                className="text-foreground/60 hover:text-foreground text-xs"
+                onClick={() => setPrintedRead(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+            {printedRead.status === 'reading' ? (
+              <p className="text-foreground/70 text-sm">Reading the page.</p>
+            ) : null}
+            {printedRead.status === 'failed' ? (
+              <p className="mb-2 text-sm text-red-600 dark:text-red-400">
+                {printedRead.error ?? 'Could not read that image. Type the problem below.'}
+              </p>
+            ) : null}
+            {printedRead.status !== 'reading' ? (
+              <textarea
+                value={printedRead.text}
+                aria-label="Correct the uploaded problem"
+                rows={4}
+                className="border-border bg-card text-foreground w-full rounded-lg border px-2 py-1.5 text-sm"
+                onChange={(event) => setPrintedRead({ status: 'ready', text: event.target.value })}
+              />
+            ) : null}
+            {printedRead.status === 'ready' ? (
+              <p className="text-foreground/50 mt-2 text-[11px]">
+                {printedRead.rough
+                  ? 'Plain-text guess only. Correct the notation before you rely on it.'
+                  : 'Writing you add later is read separately.'}
+              </p>
+            ) : null}
+          </form>
+        ) : null}
+
         <div className="max-w-[40rem]">
           <p className="text-foreground/80 font-serif text-[15px] leading-relaxed">
             Draw the next step. Ask a question, or check the work on the page.
@@ -356,6 +446,14 @@ export function TutorChat({
               Look closer
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => void handleShowStep()}
+            disabled={isAnalyzing || isLoading}
+            className="hover:bg-foreground/5 text-foreground/70 hover:text-foreground flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            Show one step
+          </button>
           {allEntries.length > 0 && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
               <button

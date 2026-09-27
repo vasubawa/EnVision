@@ -103,7 +103,7 @@ export default function SidebarClient({
   }
 
   return (
-    <div className="bg-background flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 md:hidden"

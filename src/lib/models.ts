@@ -36,7 +36,7 @@ export const MODELS = {
 } as const
 
 export interface ChatCompletionResponse {
-  choices: { message: { content: string } }[]
+  choices: { message: { content: string; reasoning?: string | null } }[]
 }
 
 export function apiKey(m: { apiKeyEnv: string }): string {
@@ -140,7 +140,7 @@ export async function parseUpstreamError(
 
   return new UpstreamAIError(
     res.status >= 400 && res.status < 600 ? res.status : 500,
-    `The ${serviceLabel} encountered an error. Please try again.`,
+    `The ${serviceLabel} returned ${res.status}. Please try again.`,
     rawMessage,
   )
 }

@@ -105,10 +105,8 @@ export function UploadDropzone() {
       {!file ? (
         <div
           {...getRootProps()}
-          className={`animate-fade-in-up group relative flex cursor-pointer flex-col items-center justify-center gap-5 rounded-2xl border px-8 py-12 transition-all duration-300 ${
-            isDragActive
-              ? 'border-primary-500 bg-primary-500/5 scale-[1.01] shadow-sm'
-              : 'border-border bg-card/60 dark:bg-card/40 hover:bg-foreground/2 dark:hover:bg-foreground/3 shadow-sm backdrop-blur-sm hover:shadow'
+          className={`group relative flex cursor-pointer flex-col items-center justify-center gap-5 rounded-2xl border px-8 py-12 transition-colors ${
+            isDragActive ? 'border-primary-500 bg-primary-500/5' : 'border-border bg-card shadow-sm'
           } `}
         >
           <input {...getInputProps()} />
@@ -139,10 +137,10 @@ export function UploadDropzone() {
                   e.stopPropagation()
                   setIsCameraOpen(true)
                 }}
-                className="group border-border bg-card hover:border-primary-500/40 text-foreground/70 hover:text-primary-500 flex w-full items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 sm:w-auto"
+                className="border-border bg-card text-foreground/70 hover:text-foreground focus-visible:outline-primary-500 flex w-full items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
                 aria-label="Take a photo with camera"
               >
-                <Camera className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+                <Camera className="h-4 w-4" />
                 Take photo
               </button>
               <button
@@ -152,15 +150,15 @@ export function UploadDropzone() {
                   e.stopPropagation()
                   handleStartLearning(false)
                 }}
-                className="group border-border hover:bg-foreground/5 text-foreground/60 hover:text-foreground flex w-full items-center justify-center gap-2 rounded-xl border bg-transparent px-5 py-2.5 text-sm font-medium transition-all duration-300 disabled:opacity-50 sm:w-auto"
+                className="border-border text-foreground/60 hover:text-foreground focus-visible:outline-primary-500 flex w-full items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 sm:w-auto"
               >
-                Blank Canvas
+                Blank page
               </button>
             </div>
           )}
         </div>
       ) : (
-        <div className="animate-fade-in-up border-border bg-card/80 dark:bg-card/60 flex flex-col gap-5 rounded-2xl border p-6 shadow-sm backdrop-blur-sm transition-shadow hover:shadow">
+        <div className="border-border bg-card flex flex-col gap-5 rounded-2xl border p-6 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="bg-primary-500/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
               <FileText className="text-primary-500 h-5 w-5" strokeWidth={1.5} />

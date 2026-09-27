@@ -2,8 +2,9 @@ import { NextRequest } from 'next/server'
 import { streamText, convertToModelMessages, type UIMessage } from 'ai'
 import { createGroq } from '@ai-sdk/groq'
 import { z } from 'zod'
-import { MODELS, apiKey, stripThinking, fetchAIWithRetry, UpstreamAIError } from '@/lib/models'
-import { SUBJECT_GUIDANCE, VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import { MODELS, apiKey, UpstreamAIError } from '@/lib/models'
+import { SUBJECT_GUIDANCE } from '@/lib/prompts'
+import { transcribeImage } from '@/lib/vision'
 import { algebraPromptNote } from '@/lib/mathCheck'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
@@ -145,64 +146,12 @@ export async function POST(req: NextRequest) {
     let activeTranscription = cachedTranscription?.trim() || null
 
     if (canvasBase64 && canvasChanged) {
-      const visionAbort = new AbortController()
-      let visionTimeout: NodeJS.Timeout | null = null
       try {
-        visionTimeout = setTimeout(() => visionAbort.abort(), 20_000)
-        const visionReq = await fetchAIWithRetry(
-          `${MODELS.vision.apiBase}/chat/completions`,
-          {
-            signal: visionAbort.signal,
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey(MODELS.vision)}`,
-            },
-            body: JSON.stringify({
-              model: MODELS.vision.model,
-              max_tokens: 2000,
-              chat_template_kwargs: { enable_thinking: false },
-              temperature: 0.6,
-              top_p: 0.95,
-              response_format: { type: 'json_object' },
-              messages: [
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: VISION_TRANSCRIBE_PROMPT,
-                    },
-                    {
-                      type: 'image_url',
-                      image_url: { url: canvasBase64 },
-                    },
-                  ],
-                },
-              ],
-            }),
-          },
-          'vision service',
-          1,
-          800,
-        )
-
-        const visionRes = await visionReq.json()
-        const transcription = extractTranscription(
-          visionRes.choices[0].message.content,
-          stripThinking,
-        )
-        if (transcription) {
-          activeTranscription = transcription
-        }
+        const transcription = await transcribeImage(canvasBase64)
+        if (transcription) activeTranscription = transcription
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.warn(
-          'Canvas transcription skipped for chat (continuing text response):',
-          e instanceof Error ? e.message : e,
-        )
-      } finally {
-        if (visionTimeout) clearTimeout(visionTimeout)
+        console.warn('[chat] page read skipped', e instanceof Error ? e.message : e)
       }
     }
 

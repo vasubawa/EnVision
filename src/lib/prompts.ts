@@ -17,7 +17,7 @@ Common misreadings to correct for:
 
 Pay close attention to typed problem statements at the top to infer the correct variables meant. Output structured text only — no interpretation of correctness, no commentary.
 
-Return ONLY valid JSON: {"transcription": "string"}. No markdown, no extra text outside the JSON.`
+Return ONLY valid JSON: {"transcription": "string"}. No thinking trace, no markdown, no extra text outside the JSON.`
 
 export function extractTranscription(
   rawContent: string,

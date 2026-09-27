@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  let stage = 'reading the page'
+  const started = Date.now()
+
   try {
     const body = await req.json()
     const canvasBase64 = body?.canvasBase64
@@ -38,14 +41,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
     }
 
-    const visionAbort = new AbortController()
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 25_000)
-    let canvasDescription = ''
-    try {
-      canvasDescription = await transcribeImage(canvasBase64, visionAbort.signal)
-    } finally {
-      clearTimeout(visionTimeout)
-    }
+    // eslint-disable-next-line no-console
+    console.info('[look-closer] start', {
+      imageChars: typeof canvasBase64 === 'string' ? canvasBase64.length : 0,
+    })
+    const canvasDescription = await transcribeImage(canvasBase64)
+    // eslint-disable-next-line no-console
+    console.info('[look-closer] read', {
+      ms: Date.now() - started,
+      chars: canvasDescription.length,
+    })
+    stage = 'writing the reply'
     const unitNote = reviewUnits(canvasDescription)?.detail
     const boardForTutor = [
       problemText.trim()
@@ -74,6 +80,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             model: MODELS.reasoningDeep.model,
             max_tokens: 2048,
+            chat_template_kwargs: { enable_thinking: false },
             messages: [
               {
                 role: 'user',
@@ -86,6 +93,8 @@ export async function POST(req: NextRequest) {
         'deep reasoning service',
       )
       deepRes = await deepReq.json()
+      // eslint-disable-next-line no-console
+      console.info('[look-closer] reply', { ms: Date.now() - started })
     } finally {
       clearTimeout(deepTimeout)
     }
@@ -184,11 +193,16 @@ export async function POST(req: NextRequest) {
 
     const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console
-    console.error('analyze-work-deep error:', error)
+    console.error('[look-closer] failed', {
+      stage,
+      ms: Date.now() - started,
+      timeout: isTimeout,
+      status: error instanceof UpstreamAIError ? error.status : null,
+    })
     return NextResponse.json(
       {
         error: isTimeout
-          ? 'Analysis timed out. Please try again.'
+          ? `${stage === 'reading the page' ? 'Reading the page' : 'The reply'} timed out. Try again.`
           : 'An unexpected error occurred during deep analysis. Please try again.',
       },
       { status: isTimeout ? 504 : 500 },

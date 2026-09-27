@@ -37,6 +37,9 @@ interface WorkspaceState {
 
   highlightToken: number
   requestHighlight: () => void
+
+  placeTutorStep: ((text: string) => void) | null
+  setPlaceTutorStep: (fn: ((text: string) => void) | null) => void
 }
 
 export type PrintedRead = {
@@ -118,4 +121,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   highlightToken: 0,
   requestHighlight: () => set((state) => ({ highlightToken: state.highlightToken + 1 })),
+
+  placeTutorStep: null,
+  setPlaceTutorStep: (placeTutorStep) => set({ placeTutorStep }),
 }))
