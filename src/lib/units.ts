@@ -28,7 +28,10 @@ const BASE: Record<string, { dim: Dim; scale: number }> = {
   mol: { dim: dim({ N: 1 }), scale: 1 },
   newton: { dim: dim({ M: 1, L: 1, T: -2 }), scale: 1 },
   j: { dim: dim({ M: 1, L: 2, T: -2 }), scale: 1 },
+  J: { dim: dim({ M: 1, L: 2, T: -2 }), scale: 1 },
   w: { dim: dim({ M: 1, L: 2, T: -3 }), scale: 1 },
+  W: { dim: dim({ M: 1, L: 2, T: -3 }), scale: 1 },
+  N: { dim: dim({ M: 1, L: 1, T: -2 }), scale: 1 },
 }
 
 type Unit = { dim: Dim; scale: number }
@@ -45,12 +48,8 @@ function mulUnit(a: Unit, b: Unit): Unit {
 }
 
 function parseUnit(raw: string): Unit | null {
-  const original = raw.trim()
-  if (original === 'n' || original === 'a' || original === 't' || original === 'v') return null
-  const text = original
-    .replace(/^N(?=$|\/)/, 'newton')
-    .toLowerCase()
-    .replace(/·/g, '*')
+  const text = raw.trim().replace(/·/g, '*')
+  if (text === 'n' || text === 'a' || text === 't' || text === 'v') return null
   if (!text || /[a-z]{2,}/.test(text.replace(/km|cm|mm|min|hr|mol|kg/g, ''))) {
     /* multi-letter leftovers that are not units */
   }
@@ -70,7 +69,7 @@ function product(raw: string): Unit | null {
   const pieces = raw.split('*').filter(Boolean)
   if (pieces.length === 0) return null
   for (const piece of pieces) {
-    const match = piece.match(/^([a-z]+(?:\d+)?)(?:\^(-?\d+))?$/)
+    const match = piece.match(/^([A-Za-z]+)(?:\^(-?\d+))?$/)
     if (!match) return null
     const base = BASE[match[1]]
     if (!base) return null
@@ -132,7 +131,11 @@ export function reviewUnits(text: string): { detail: string } | null {
     }
     for (const termGroup of line.split('=')) {
       const terms = splitTerms(termGroup)
-      const measured = terms.flatMap((term) => quantitiesIn(term).map((qty) => ({ ...qty, term })))
+      const measured = terms.flatMap((term) => {
+        const found = quantitiesIn(term)
+        if (found.length !== 1) return []
+        return found.map((qty) => ({ ...qty, term }))
+      })
       if (measured.length < 2) continue
       const first = measured[0]
       for (const next of measured.slice(1)) {

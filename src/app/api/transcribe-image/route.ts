@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid image' }, { status: 400 })
     }
 
-    const transcription = await transcribeImage(image)
+    const transcription = await transcribeImage(image, 50_000)
     if (!transcription) return NextResponse.json({ error: 'No reading returned.' }, { status: 502 })
     return NextResponse.json({ transcription })
   } catch (error) {

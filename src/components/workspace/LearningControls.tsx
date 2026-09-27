@@ -93,6 +93,8 @@ export function LearningControls() {
                 <button
                   key={key}
                   type="button"
+                  role="switch"
+                  aria-checked={isChecked}
                   onClick={() => setLearningPreferences({ [key]: !isChecked })}
                   className="hover:bg-foreground/5 flex w-full items-start justify-between rounded-xl p-2 text-left transition-colors"
                 >

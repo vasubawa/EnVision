@@ -68,10 +68,25 @@ function limit(ms: number): { signal: AbortSignal; clear: () => void; abort: () 
   }
 }
 
-/** NVIDIA first, then Gemma if NVIDIA is busy or too slow. */
-export async function transcribeImage(image: string, signal?: AbortSignal): Promise<string> {
+function upstreamStatus(error: unknown): number | null {
+  if (!(error instanceof UpstreamAIError)) return null
+  return error.upstreamStatus
+}
+
+/** NVIDIA first, then Gemma, sharing one time budget. */
+export async function transcribeImage(
+  image: string,
+  budgetMs: number,
+  signal?: AbortSignal,
+): Promise<string> {
   const started = Date.now()
-  const nvidia = limit(45_000)
+  const deadline = started + budgetMs
+  const remaining = () => deadline - Date.now()
+  const nvidiaMs = Math.min(45_000, remaining())
+  if (nvidiaMs < 1_000) {
+    throw new UpstreamAIError(504, 'The vision service took too long to respond. Please try again.')
+  }
+  const nvidia = limit(nvidiaMs)
   const onParentAbort = () => nvidia.abort()
   signal?.addEventListener('abort', onParentAbort)
   try {
@@ -87,7 +102,7 @@ export async function transcribeImage(image: string, signal?: AbortSignal): Prom
     console.info('[vision] nvidia ok', { ms: Date.now() - started, chars: text.length })
     return text
   } catch (error) {
-    const status = error instanceof UpstreamAIError ? error.status : null
+    const status = upstreamStatus(error)
     const aborted = error instanceof Error && error.name === 'AbortError'
     const detail =
       error instanceof UpstreamAIError ? (error.details ?? error.message).slice(0, 240) : ''
@@ -95,10 +110,10 @@ export async function transcribeImage(image: string, signal?: AbortSignal): Prom
     console.warn('[vision] nvidia failed', { ms: Date.now() - started, status, aborted, detail })
     const backup = googleKey()
     const auth = status === 401 || status === 403
-    if (!backup || auth || signal?.aborted) throw error
+    if (!backup || auth || signal?.aborted || remaining() < 1_000) throw error
     // eslint-disable-next-line no-console
     console.info('[vision] trying gemma')
-    const gemma = limit(50_000)
+    const gemma = limit(remaining())
     const readGemma = () =>
       readOnce(GOOGLE_VISION.apiBase, GOOGLE_VISION.model, backup, image, gemma.signal, {
         chat_template_kwargs: { enable_thinking: false },
@@ -108,8 +123,8 @@ export async function transcribeImage(image: string, signal?: AbortSignal): Prom
       try {
         text = await readGemma()
       } catch (first) {
-        const gemmaStatus = first instanceof UpstreamAIError ? first.status : null
-        if (gemmaStatus !== 500 || gemma.signal.aborted) throw first
+        const gemmaStatus = upstreamStatus(first)
+        if (gemmaStatus !== 500 || gemma.signal.aborted || remaining() < 1_000) throw first
         // eslint-disable-next-line no-console
         console.warn('[vision] gemma 500, retrying once')
         text = await readGemma()
@@ -122,7 +137,7 @@ export async function transcribeImage(image: string, signal?: AbortSignal): Prom
       console.warn('[vision] gemma failed', {
         ms: Date.now() - started,
         aborted: backupError instanceof Error && backupError.name === 'AbortError',
-        status: backupError instanceof UpstreamAIError ? backupError.status : null,
+        status: upstreamStatus(backupError),
         detail:
           backupError instanceof UpstreamAIError
             ? (backupError.details ?? backupError.message).slice(0, 240)

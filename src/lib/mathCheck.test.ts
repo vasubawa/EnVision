@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { equivalent, reviewAlgebra } from './mathCheck.ts'
+import { equivalent, reviewAlgebra, applyBoardChecks } from './mathCheck.ts'
 
 test('expanded linear steps match', () => {
   assert.equal(equivalent('2*(x+3)=14', '2*x+6=14'), true)
@@ -54,4 +54,14 @@ test('a wrong numerical substitution is rejected', () => {
 test('a correct numerical substitution is accepted', () => {
   const review = reviewAlgebra('10*s = 400\ns = 40')
   assert.equal(review?.rejects, false)
+})
+
+test('a rejected step is a mistake even when it has not been judged', () => {
+  const result = applyBoardChecks(
+    { isCorrect: null, judgement: 'progress', suggestion: 'Try again.' },
+    '20/4 = 6',
+  )
+  assert.equal(result.isCorrect, false)
+  assert.equal(result.judgement, 'mistake')
+  assert.match(result.suggestion, /rejects/i)
 })

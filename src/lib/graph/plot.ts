@@ -39,7 +39,7 @@ function normalize(input: string): string {
   source = source.replace(/^y\s*=\s*/i, '')
   source = source.replace(/^f\s*\(\s*[a-zA-Z]\s*\)\s*=\s*/, '')
   source = source.replace(/\bln\s*\(/g, 'log(')
-  source = source.replace(/(\d)\s*(?=[a-zA-Z(])/g, '$1*')
+  source = source.replace(/(?<![A-Za-z])(\d)\s*(?!(?:[eE][+-]?\d))(?=[A-Za-z(])/g, '$1*')
   source = source.replace(/\)\s*(?=[a-zA-Z0-9(])/g, ')*')
   return source
 }

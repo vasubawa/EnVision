@@ -51,13 +51,15 @@ export function stripThinking(text: string): string {
 
 export class UpstreamAIError extends Error {
   public status: number
+  public upstreamStatus: number
   public userMessage: string
   public details?: string
 
-  constructor(status: number, userMessage: string, details?: string) {
+  constructor(status: number, userMessage: string, details?: string, upstreamStatus?: number) {
     super(userMessage)
     this.name = 'UpstreamAIError'
     this.status = status
+    this.upstreamStatus = upstreamStatus ?? status
     this.userMessage = userMessage
     this.details = details
   }
@@ -135,6 +137,7 @@ export async function parseUpstreamError(
       500,
       `Authentication error connecting to ${serviceLabel}. Please verify API keys.`,
       rawMessage,
+      res.status,
     )
   }
 

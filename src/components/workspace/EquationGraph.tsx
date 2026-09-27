@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, RotateCcw, X } from 'lucide-react'
 import {
   preparePlot,
@@ -178,13 +178,35 @@ export function EquationGraph({ initial, onClose }: { initial: string; onClose: 
     }
   }, [prepared, sliders, view])
 
-  const location = (clientX: number, clientY: number, bounds: DOMRect) => {
-    const px = clientX - bounds.left
-    const py = clientY - bounds.top
-    const x = view.xMin + (px / bounds.width) * (view.xMax - view.xMin)
-    const y = view.yMax - (py / bounds.height) * (view.yMax - view.yMin)
-    return { x, y }
-  }
+  const location = useCallback(
+    (clientX: number, clientY: number, bounds: DOMRect) => {
+      const px = clientX - bounds.left
+      const py = clientY - bounds.top
+      const x = view.xMin + (px / bounds.width) * (view.xMax - view.xMin)
+      const y = view.yMax - (py / bounds.height) * (view.yMax - view.yMin)
+      return { x, y }
+    },
+    [view],
+  )
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const bounds = canvas.getBoundingClientRect()
+      const { x, y } = location(event.clientX, event.clientY, bounds)
+      const factor = event.deltaY > 0 ? 1.12 : 0.88
+      setView((current) => ({
+        xMin: x - (x - current.xMin) * factor,
+        xMax: x + (current.xMax - x) * factor,
+        yMin: y - (y - current.yMin) * factor,
+        yMax: y + (current.yMax - y) * factor,
+      }))
+    }
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', onWheel)
+  }, [location])
 
   return (
     <section
@@ -266,18 +288,6 @@ export function EquationGraph({ initial, onClose }: { initial: string; onClose: 
         className="border-border h-72 w-full touch-none rounded-xl border"
         role="img"
         aria-label={`Curves plotted against ${axisName}. Drag to pan, scroll to zoom.`}
-        onWheel={(event) => {
-          event.preventDefault()
-          const bounds = event.currentTarget.getBoundingClientRect()
-          const { x, y } = location(event.clientX, event.clientY, bounds)
-          const factor = event.deltaY > 0 ? 1.12 : 0.88
-          setView((current) => ({
-            xMin: x - (x - current.xMin) * factor,
-            xMax: x + (current.xMax - x) * factor,
-            yMin: y - (y - current.yMin) * factor,
-            yMax: y + (current.yMax - y) * factor,
-          }))
-        }}
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId)
           drag.current = { x: event.clientX, y: event.clientY, view }

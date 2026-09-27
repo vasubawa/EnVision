@@ -194,6 +194,8 @@ export function LiveTutor({ workspaceId }: { workspaceId: string }) {
       model = tokenBody.model
       setVoice(liveModelLabel(model))
 
+      void playbackRef.current?.close()
+      playbackRef.current = null
       const playback = new AudioContext()
       playbackRef.current = playback
       await playback.resume()
@@ -242,10 +244,8 @@ export function LiveTutor({ workspaceId }: { workspaceId: string }) {
             setPhase('error')
           },
           onclose: () => {
-            if (sessionRef.current) {
-              setPhase('idle')
-              sessionRef.current = null
-            }
+            if (run !== runRef.current) return
+            end()
           },
         },
       })
