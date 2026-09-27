@@ -2,6 +2,7 @@
 
 import {
   Pen,
+  Highlighter,
   MousePointer2,
   Trash2,
   X,
@@ -21,7 +22,8 @@ import {
 } from 'lucide-react'
 import { useState, useRef } from 'react'
 
-export type DrawingMode = 'draw' | 'select' | 'pan' | 'rect' | 'circle' | 'line' | 'text' | 'erase'
+export type DrawingMode =
+  'draw' | 'highlighter' | 'select' | 'pan' | 'rect' | 'circle' | 'line' | 'text' | 'erase'
 export type BrushColor =
   '#C05621' | '#1A1510' | '#2B6CB0' | '#D69E2E' | '#38A169' | '#805AD5' | '#E53E3E'
 export type BrushSize = 1 | 2 | 4 | 8 | 12 | 16
@@ -69,6 +71,8 @@ export function Toolbar({
 }: ToolbarProps) {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [isMobileExpanded, setIsMobileExpanded] = useState(false)
+  const [inkOpen, setInkOpen] = useState(false)
+  const [shapesOpen, setShapesOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,19 +88,17 @@ export function Toolbar({
 
   const handleSetMode = (newMode: DrawingMode) => {
     setMode(newMode)
+    setShapesOpen(false)
+    setInkOpen(false)
     setIsMobileExpanded(false)
   }
 
   const handleSetColor = (c: BrushColor) => {
     setColor(c)
-    setMode('draw')
-    setIsMobileExpanded(false)
   }
 
   const handleSetSize = (s: BrushSize) => {
     setSize(s)
-    setMode('draw')
-    setIsMobileExpanded(false)
   }
 
   const ActiveModeIcon =
@@ -104,6 +106,7 @@ export function Toolbar({
       select: MousePointer2,
       pan: Hand,
       draw: Pen,
+      highlighter: Highlighter,
       erase: Eraser,
       text: Type,
       rect: Square,
@@ -113,9 +116,8 @@ export function Toolbar({
 
   return (
     <>
-      {/* Compact Mobile Toolbar */}
       <div
-        className={`bg-card/80 border-border absolute bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-2xl border p-1.5 shadow-sm backdrop-blur-md transition-all duration-300 sm:hidden ${isMobileExpanded ? 'pointer-events-none translate-y-8 scale-95 opacity-0' : 'pointer-events-auto translate-y-0 scale-100 opacity-100'}`}
+        className={`bg-card border-border absolute bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-2xl border p-1.5 shadow-sm transition-all duration-300 sm:hidden ${isMobileExpanded ? 'pointer-events-none translate-y-8 scale-95 opacity-0' : 'pointer-events-auto translate-y-0 scale-100 opacity-100'}`}
       >
         <button
           onClick={() => setIsMobileExpanded(true)}
@@ -159,9 +161,8 @@ export function Toolbar({
         )}
       </div>
 
-      {/* Full Expanded Toolbar */}
       <div
-        className={`bg-card/80 border-border absolute bottom-6 left-1/2 z-50 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-2xl border p-1.5 shadow-lg backdrop-blur-md transition-all duration-300 sm:top-4 sm:bottom-auto sm:max-w-2xl ${isMobileExpanded ? 'pointer-events-auto translate-y-0 scale-100 opacity-100' : 'pointer-events-none translate-y-8 scale-95 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:scale-100 sm:opacity-100'}`}
+        className={`bg-card border-border absolute bottom-6 left-1/2 z-50 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-2xl border p-1.5 shadow-sm transition-all duration-300 sm:top-4 sm:bottom-auto sm:max-w-2xl ${isMobileExpanded ? 'pointer-events-auto translate-y-0 scale-100 opacity-100' : 'pointer-events-none translate-y-8 scale-95 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:scale-100 sm:opacity-100'}`}
       >
         <div className="mb-1 flex w-full items-center justify-between px-1 sm:hidden">
           <span className="text-foreground/50 text-xs font-medium tracking-wider uppercase">
@@ -180,7 +181,7 @@ export function Toolbar({
         <button
           onClick={() => handleSetMode('select')}
           className={`rounded-xl p-2 transition-colors ${mode === 'select' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
-          title="Select & Move (V)"
+          title="Select and edit (V). Drag a line. Double-click to change the words."
         >
           <MousePointer2 className="h-4 w-4" />
         </button>
@@ -188,7 +189,7 @@ export function Toolbar({
         <button
           onClick={() => handleSetMode('pan')}
           className={`rounded-xl p-2 transition-colors ${mode === 'pan' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
-          title="Pan Canvas (H or Spacebar)"
+          title="Move the page (hold the wheel, or Shift and scroll)"
         >
           <Hand className="h-4 w-4" />
         </button>
@@ -202,6 +203,14 @@ export function Toolbar({
         </button>
 
         <button
+          onClick={() => handleSetMode('highlighter')}
+          className={`rounded-xl p-2 transition-colors ${mode === 'highlighter' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
+          title="Highlighter (H)"
+        >
+          <Highlighter className="h-4 w-4" />
+        </button>
+
+        <button
           onClick={() => handleSetMode('erase')}
           className={`rounded-xl p-2 transition-colors ${mode === 'erase' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
           title="Object Eraser (E)"
@@ -212,77 +221,110 @@ export function Toolbar({
         <button
           onClick={() => handleSetMode('text')}
           className={`rounded-xl p-2 transition-colors ${mode === 'text' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
-          title="Text (T)"
+          title="Text (T). Click existing writing to edit it."
         >
           <Type className="h-4 w-4" />
         </button>
 
-        <button
-          onClick={() => handleSetMode('rect')}
-          className={`rounded-xl p-2 transition-colors ${mode === 'rect' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
-          title="Rectangle (R)"
-        >
-          <Square className="h-4 w-4" />
-        </button>
-
-        <button
-          onClick={() => handleSetMode('circle')}
-          className={`rounded-xl p-2 transition-colors ${mode === 'circle' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
-          title="Circle (C)"
-        >
-          <Circle className="h-4 w-4" />
-        </button>
-
-        <button
-          onClick={() => handleSetMode('line')}
-          className={`rounded-xl p-2 transition-colors ${mode === 'line' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
-          title="Line (L)"
-        >
-          <Minus className="h-4 w-4" />
-        </button>
-
-        <div className="bg-border mx-1 h-6 w-px" />
-
-        {/* Colors */}
-        <div className="flex items-center gap-1.5 px-2">
-          {(
-            [
-              '#C05621',
-              '#1A1510',
-              '#2B6CB0',
-              '#D69E2E',
-              '#38A169',
-              '#805AD5',
-              '#E53E3E',
-            ] as BrushColor[]
-          ).map((c) => (
-            <button
-              key={c}
-              onClick={() => handleSetColor(c)}
-              className={`h-6 w-6 rounded-full border-2 transition-transform ${color === c && mode === 'draw' ? 'border-foreground/30 scale-110 shadow-sm' : 'border-transparent hover:scale-110'}`}
-              style={{ backgroundColor: c }}
-              title="Set Color"
-            />
-          ))}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShapesOpen((open) => !open)
+              setInkOpen(false)
+            }}
+            aria-expanded={shapesOpen}
+            className={`rounded-xl p-2 transition-colors ${mode === 'rect' || mode === 'circle' || mode === 'line' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground'}`}
+            title="Shapes"
+          >
+            {mode === 'circle' ? (
+              <Circle className="h-4 w-4" />
+            ) : mode === 'line' ? (
+              <Minus className="h-4 w-4" />
+            ) : (
+              <Square className="h-4 w-4" />
+            )}
+          </button>
+          {shapesOpen && (
+            <div className="bg-card border-border absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 gap-1 rounded-xl border p-1.5 shadow-sm sm:top-full sm:bottom-auto sm:mt-2 sm:mb-0">
+              <button
+                onClick={() => handleSetMode('rect')}
+                className={`rounded-lg p-2 ${mode === 'rect' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5'}`}
+                title="Rectangle (R)"
+              >
+                <Square className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleSetMode('circle')}
+                className={`rounded-lg p-2 ${mode === 'circle' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5'}`}
+                title="Circle (C)"
+              >
+                <Circle className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleSetMode('line')}
+                className={`rounded-lg p-2 ${mode === 'line' ? 'bg-primary-500/10 text-primary-500' : 'text-foreground/60 hover:bg-foreground/5'}`}
+                title="Line (L)"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-border mx-1 h-6 w-px" />
 
-        {/* Brush Size */}
-        <div className="flex items-center gap-0.5 px-1">
-          {[1, 2, 4, 8, 12, 16].map((s) => (
-            <button
-              key={s}
-              onClick={() => handleSetSize(s as BrushSize)}
-              className={`hover:bg-foreground/5 flex h-6 w-6 items-center justify-center rounded-lg transition-colors ${size === s && mode === 'draw' ? 'bg-foreground/10' : ''}`}
-              title={`Size: ${s}px`}
-            >
-              <div
-                className="bg-foreground/70 rounded-full"
-                style={{ width: s + 2, height: s + 2 }}
-              />
-            </button>
-          ))}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setInkOpen((open) => !open)
+              setShapesOpen(false)
+            }}
+            aria-expanded={inkOpen}
+            aria-label="Ink"
+            className={`border-border h-6 w-6 rounded-full border-2 ${inkOpen ? 'border-foreground/40' : ''}`}
+            style={{ backgroundColor: color }}
+            title="Ink color and width"
+          />
+          {inkOpen && (
+            <div className="bg-card border-border absolute bottom-full left-1/2 mb-2 flex w-max -translate-x-1/2 flex-col gap-2 rounded-xl border p-3 shadow-sm sm:top-full sm:bottom-auto sm:mt-2 sm:mb-0">
+              <div className="flex items-center gap-1.5">
+                {(
+                  [
+                    '#C05621',
+                    '#1A1510',
+                    '#2B6CB0',
+                    '#D69E2E',
+                    '#38A169',
+                    '#805AD5',
+                    '#E53E3E',
+                  ] as BrushColor[]
+                ).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => handleSetColor(c)}
+                    className={`h-6 w-6 rounded-full border-2 ${color === c ? 'border-foreground/40' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }}
+                    title="Set color"
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-0.5">
+                {([1, 2, 4, 8, 12, 16] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSetSize(s)}
+                    className={`hover:bg-foreground/5 flex h-6 w-6 items-center justify-center rounded-lg ${size === s ? 'bg-foreground/15' : ''}`}
+                    title={`Width: ${s}px`}
+                  >
+                    <div
+                      className="bg-foreground/70 rounded-full"
+                      style={{ width: Math.min(s + 2, 14), height: Math.min(s + 2, 14) }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-border mx-1 h-6 w-px" />

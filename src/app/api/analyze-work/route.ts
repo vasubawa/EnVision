@@ -1,9 +1,18 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
-import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import {
+  MODELS,
+  apiKey,
+  fetchAIWithRetry,
+  UpstreamAIError,
+  type ChatCompletionResponse,
+} from '@/lib/models'
+import { transcribeImage } from '@/lib/vision'
+import { reviewUnits } from '@/lib/units'
+import { SUBJECT_GUIDANCE } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
-import { type Feedback, isFeedbackShape } from '@/types/feedback'
+import { type Feedback, isFeedbackShape, normalizeFeedback } from '@/types/feedback'
+import { algebraPromptNote, applyBoardChecks } from '@/lib/mathCheck'
 
 // Vision (45s, reasoning model) + reasoning (25s) can exceed 60s combined.
 export const maxDuration = 90
@@ -17,8 +26,14 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  let stage = 'reading the page'
+  const started = Date.now()
+
   try {
-    const { canvasBase64, workspaceId } = await req.json()
+    const body = await req.json()
+    const canvasBase64 = body?.canvasBase64
+    const workspaceId = body?.workspaceId
+    const problemText = typeof body?.problemText === 'string' ? body.problemText : ''
 
     const access = await requireWorkspaceOwner(workspaceId)
     if ('error' in access) return access.error
@@ -27,79 +42,58 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
     }
 
-    // Step 1: Vision Transcription (45s timeout — reasoning model needs room to think)
-    const visionAbort = new AbortController()
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 45_000)
+    // eslint-disable-next-line no-console
+    console.info('[check] start', {
+      imageChars: typeof canvasBase64 === 'string' ? canvasBase64.length : 0,
+    })
+    const canvasDescription = await transcribeImage(canvasBase64)
+    // eslint-disable-next-line no-console
+    console.info('[check] read', { ms: Date.now() - started, chars: canvasDescription.length })
+    stage = 'writing the reply'
+    const unitNote = reviewUnits(canvasDescription)?.detail
+    const boardForTutor = [
+      problemText.trim()
+        ? `Pasted problem, already read. Do not treat it as the student's new writing:\n${problemText.trim()}`
+        : '',
+      canvasDescription,
+      unitNote ?? '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
 
-    let visionRes: ChatCompletionResponse
-    try {
-      const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: visionAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey(MODELS.vision)}`,
-        },
-        body: JSON.stringify({
-          model: MODELS.vision.model,
-          max_tokens: 2000,
-          chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
-          temperature: 0.6,
-          top_p: 0.95,
-          response_format: { type: 'json_object' },
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: VISION_TRANSCRIBE_PROMPT,
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: canvasBase64 },
-                },
-              ],
-            },
-          ],
-        }),
-      })
-      if (!visionReq.ok) throw new Error(`Vision API error: ${await visionReq.text()}`)
-      visionRes = await visionReq.json()
-    } finally {
-      clearTimeout(visionTimeout)
-    }
-    const canvasDescription = extractTranscription(
-      visionRes.choices[0].message.content,
-      stripThinking,
-    )
-
-    // Step 2: Socratic Tutor (25s timeout)
     const groqAbort = new AbortController()
     const groqTimeout = setTimeout(() => groqAbort.abort(), 25_000)
 
     let groqRes: ChatCompletionResponse
     try {
-      const groqReq = await fetch(`${MODELS.reasoning.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: groqAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey(MODELS.reasoning)}`,
+      const groqReq = await fetchAIWithRetry(
+        `${MODELS.reasoning.apiBase}/chat/completions`,
+        {
+          method: 'POST',
+          signal: groqAbort.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey(MODELS.reasoning)}`,
+          },
+          body: JSON.stringify({
+            model: MODELS.reasoning.model,
+            max_tokens: 2048,
+            reasoning_effort: 'low',
+            messages: [
+              {
+                role: 'user',
+                content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${boardForTutor}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct, still in progress, or a mistake.\n4. End with a Socratic question asking what to do next, or how to fix a mistake.\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Use judgement progress when the step is fine but unfinished, or when there is not enough work to judge.
+- judgement is "progress" when the step is fine but the problem is not finished, or when there is not enough work to judge. Use "mistake" only for a wrong step. Use "correct" only when the requested result is finished and right.
+- ${SUBJECT_GUIDANCE}\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"judgement": "correct" | "progress" | "mistake", "suggestion": "string"}. No markdown, no extra text.${algebraPromptNote(canvasDescription)}`,
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model: MODELS.reasoning.model,
-          max_tokens: 2048,
-          messages: [
-            {
-              role: 'user',
-              content: `You are a Socratic tutor reviewing student work. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour goal is to validate what they have done and guide them on what's next. Structure your response (3-4 sentences) as follows:\n1. Briefly acknowledge the problem they are solving.\n2. Summarize the work they have done so far.\n3. State clearly whether their current step is correct or if there is an error.\n4. End with a Socratic question asking what to do next (if correct) or how to fix the error (if incorrect).\n\nSTRICT RULES:\n- NEVER give the answer, a worked solution, or list steps to perform.\n- If the canvas appears blank or only shows a problem statement (no student work), just acknowledge the problem and ask how they might start.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\\\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`,
-            },
-          ],
-        }),
-      })
-      if (!groqReq.ok) throw new Error(`Groq API error: ${await groqReq.text()}`)
+        'reasoning service',
+      )
       groqRes = await groqReq.json()
+      // eslint-disable-next-line no-console
+      console.info('[check] reply', { ms: Date.now() - started })
     } finally {
       clearTimeout(groqTimeout)
     }
@@ -130,26 +124,35 @@ export async function POST(req: NextRequest) {
                 .replace(/\r\n|\r|\n/g, ' ')
                 .replace(/\\n/g, ' ')
                 .trim()
-              return { isCorrect: !!innerObj.isCorrect, suggestion }
+              return normalizeFeedback({
+                suggestion: innerObj.suggestion,
+                isCorrect: typeof innerObj.isCorrect === 'boolean' ? innerObj.isCorrect : undefined,
+                judgement:
+                  typeof (inner as { judgement?: unknown }).judgement === 'string'
+                    ? String((inner as { judgement?: unknown }).judgement)
+                    : undefined,
+              })
             }
           } catch {
             /* not nested JSON, use as-is */
           }
         }
-        return { isCorrect: obj.isCorrect, suggestion }
+        return normalizeFeedback({
+          suggestion,
+          isCorrect: typeof obj.isCorrect === 'boolean' ? obj.isCorrect : undefined,
+          judgement: typeof obj.judgement === 'string' ? obj.judgement : undefined,
+        })
       }
       return null
     }
 
-    // Stage 1: direct JSON parse of the raw response
     try {
       const obj = JSON.parse(rawText)
       parsedResult = extractResult(obj)
     } catch {
-      /* continue to next stage */
+      /* continue */
     }
 
-    // Stage 2: strip markdown fences and try again
     if (!parsedResult) {
       try {
         const stripped = rawText.replace(/```json|```/g, '').trim()
@@ -160,7 +163,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Stage 3: extract the first JSON object block from anywhere in the text
     if (!parsedResult) {
       try {
         const match = rawText.match(/\{[\s\S]*\}/)
@@ -170,24 +172,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fallback regex extraction if JSON.parse fails due to unescaped backslashes
     if (!parsedResult) {
       const suggestionMatch = rawText.match(/"suggestion"\s*:\s*"([\s\S]*?)"\s*\}/)
       if (suggestionMatch) {
-        parsedResult = {
-          isCorrect: rawText.includes('"isCorrect": true') || rawText.includes('"isCorrect":true'),
+        parsedResult = normalizeFeedback({
+          isCorrect:
+            rawText.includes('"judgement": "correct"') ||
+            rawText.includes('"isCorrect": true') ||
+            rawText.includes('"isCorrect":true'),
+          judgement: rawText.includes('"judgement": "progress"')
+            ? 'progress'
+            : rawText.includes('"judgement": "mistake"')
+              ? 'mistake'
+              : undefined,
           suggestion: suggestionMatch[1]
             .replace(/\\n/g, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim(),
-        }
+        })
       }
     }
 
-    // Stage 4: last-resort regex strip — pull the suggestion string out manually
     if (!parsedResult) {
       // eslint-disable-next-line no-console
       console.warn('[analyze-work] All JSON parse stages failed, using regex strip')
+      const judgementMatch = rawText.match(/"judgement"\s*:\s*"(correct|progress|mistake)"/)
       const isCorrectMatch = rawText.match(/"isCorrect"\s*:\s*(true|false)/)
       const suggestionMatch = rawText.match(/"suggestion"\s*:\s*"([\s\S]*?)(?<!\\)"/)
       const suggestion = suggestionMatch
@@ -197,16 +206,17 @@ export async function POST(req: NextRequest) {
             .replace(/\s{2,}/g, ' ')
             .trim()
         : rawText.replace(/[{}"\\n]/g, ' ').trim()
-      parsedResult = {
+      parsedResult = normalizeFeedback({
         isCorrect: isCorrectMatch?.[1] === 'true',
+        judgement: judgementMatch?.[1],
         suggestion,
-      }
+      })
     }
 
-    // Save feedback — ownership already verified above
     let savedId = undefined
 
     if (parsedResult) {
+      parsedResult = applyBoardChecks(parsedResult, canvasDescription)
       const { data, error: insertError } = await access.supabase
         .from('messages')
         .insert({
@@ -228,16 +238,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ...parsedResult, id: savedId })
+    return NextResponse.json({
+      ...parsedResult,
+      id: savedId,
+      canvasTranscription: canvasDescription,
+    })
   } catch (error: unknown) {
+    if (error instanceof UpstreamAIError) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[analyze-work] Upstream AI error (${error.status}):`,
+        error.details || error.message,
+      )
+      return NextResponse.json({ error: error.userMessage }, { status: error.status })
+    }
+
     const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console
-    console.error('analyze-work error:', error)
+    console.error('[check] failed', {
+      stage,
+      ms: Date.now() - started,
+      timeout: isTimeout,
+      status: error instanceof UpstreamAIError ? error.status : null,
+    })
     return NextResponse.json(
       {
         error: isTimeout
-          ? 'Analysis timed out. Please try again.'
-          : 'An internal error occurred during analysis.',
+          ? `${stage === 'reading the page' ? 'Reading the page' : 'The reply'} timed out. Try again.`
+          : 'An unexpected error occurred during analysis. Please try again.',
       },
       { status: isTimeout ? 504 : 500 },
     )

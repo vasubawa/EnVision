@@ -1,9 +1,18 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { MODELS, apiKey, stripThinking, type ChatCompletionResponse } from '@/lib/models'
-import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import {
+  MODELS,
+  apiKey,
+  fetchAIWithRetry,
+  UpstreamAIError,
+  type ChatCompletionResponse,
+} from '@/lib/models'
+import { transcribeImage } from '@/lib/vision'
+import { reviewUnits } from '@/lib/units'
+import { SUBJECT_GUIDANCE } from '@/lib/prompts'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
-import { type Feedback, isFeedbackShape } from '@/types/feedback'
+import { type Feedback, isFeedbackShape, normalizeFeedback } from '@/types/feedback'
+import { algebraPromptNote, applyBoardChecks } from '@/lib/mathCheck'
 
 export const maxDuration = 90
 
@@ -16,8 +25,14 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  let stage = 'reading the page'
+  const started = Date.now()
+
   try {
-    const { canvasBase64, workspaceId } = await req.json()
+    const body = await req.json()
+    const canvasBase64 = body?.canvasBase64
+    const workspaceId = body?.workspaceId
+    const problemText = typeof body?.problemText === 'string' ? body.problemText : ''
 
     const access = await requireWorkspaceOwner(workspaceId)
     if ('error' in access) return access.error
@@ -26,85 +41,66 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid canvas image' }, { status: 400 })
     }
 
-    const visionAbort = new AbortController()
-    const visionTimeout = setTimeout(() => visionAbort.abort(), 25_000)
-
-    let visionRes: ChatCompletionResponse
-    try {
-      const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: visionAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey(MODELS.vision)}`,
-        },
-        body: JSON.stringify({
-          model: MODELS.vision.model,
-          max_tokens: 2000,
-          chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
-          temperature: 0.6,
-          top_p: 0.95,
-          response_format: { type: 'json_object' },
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: VISION_TRANSCRIBE_PROMPT,
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: canvasBase64 },
-                },
-              ],
-            },
-          ],
-        }),
-      })
-      if (!visionReq.ok) throw new Error(`Vision API error: ${await visionReq.text()}`)
-      visionRes = await visionReq.json()
-    } finally {
-      clearTimeout(visionTimeout)
-    }
-
-    const canvasDescription = extractTranscription(
-      visionRes.choices[0].message.content,
-      stripThinking,
-    )
+    // eslint-disable-next-line no-console
+    console.info('[look-closer] start', {
+      imageChars: typeof canvasBase64 === 'string' ? canvasBase64.length : 0,
+    })
+    const canvasDescription = await transcribeImage(canvasBase64)
+    // eslint-disable-next-line no-console
+    console.info('[look-closer] read', {
+      ms: Date.now() - started,
+      chars: canvasDescription.length,
+    })
+    stage = 'writing the reply'
+    const unitNote = reviewUnits(canvasDescription)?.detail
+    const boardForTutor = [
+      problemText.trim()
+        ? `Pasted problem, already read. Do not treat it as the student's new writing:\n${problemText.trim()}`
+        : '',
+      canvasDescription,
+      unitNote ?? '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
 
     const deepAbort = new AbortController()
     const deepTimeout = setTimeout(() => deepAbort.abort(), 30_000)
 
     let deepRes: ChatCompletionResponse
     try {
-      const deepReq = await fetch(`${MODELS.reasoningDeep.apiBase}/chat/completions`, {
-        method: 'POST',
-        signal: deepAbort.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey(MODELS.reasoningDeep)}`,
+      const deepReq = await fetchAIWithRetry(
+        `${MODELS.reasoningDeep.apiBase}/chat/completions`,
+        {
+          method: 'POST',
+          signal: deepAbort.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey(MODELS.reasoningDeep)}`,
+          },
+          body: JSON.stringify({
+            model: MODELS.reasoningDeep.model,
+            max_tokens: 2048,
+            chat_template_kwargs: { enable_thinking: false },
+            messages: [
+              {
+                role: 'user',
+                content: `You are a Socratic tutor giving a DEEPER analysis than a quick check. The student's whiteboard contains:\n\n${boardForTutor}\n\nYour response must be more substantial than a simple question — it should:\n1. Identify the key mathematical concept or technique relevant to this problem or work (name it explicitly, e.g. "surface parameterization", "u-substitution", "cross product").\n2. Briefly explain WHY that concept applies here (1 sentence).\n3. End with a focused Socratic question that points to the next concrete step.\n\nSTRICT RULES:\n- If the canvas appears blank or only shows a problem statement (no student work), identify the problem TYPE and the main concept needed to solve it, then ask: "Do you know how to [apply that concept]?" or "What does [concept] tell you about this setup?" — don't just ask "what's your first step?".\n- NEVER give the answer, a worked solution, or step-by-step method.\n- Write 3-4 sentences maximum. No bullet lists.\n- If their work has errors, name WHAT is wrong conceptually (e.g. "the limits of integration don't account for the constraint") without showing how to fix it.\n- If their work is correct so far, confirm what they've done right and name the next concept they'll need.
+- If their work is correct so far but unfinished, set judgement to progress.\n- ${SUBJECT_GUIDANCE}\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"judgement": "correct" | "progress" | "mistake", "suggestion": "string"}. No markdown, no extra text.${algebraPromptNote(canvasDescription)}`,
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          model: MODELS.reasoningDeep.model,
-          max_tokens: 2048,
-          messages: [
-            {
-              role: 'user',
-              content: `You are a Socratic tutor giving a DEEPER analysis than a quick check. The student's whiteboard contains:\n\n${canvasDescription}\n\nYour response must be more substantial than a simple question — it should:\n1. Identify the key mathematical concept or technique relevant to this problem or work (name it explicitly, e.g. "surface parameterization", "u-substitution", "cross product").\n2. Briefly explain WHY that concept applies here (1 sentence).\n3. End with a focused Socratic question that points to the next concrete step.\n\nSTRICT RULES:\n- If the canvas appears blank or only shows a problem statement (no student work), identify the problem TYPE and the main concept needed to solve it, then ask: "Do you know how to [apply that concept]?" or "What does [concept] tell you about this setup?" — don't just ask "what's your first step?".\n- NEVER give the answer, a worked solution, or step-by-step method.\n- Write 3-4 sentences maximum. No bullet lists.\n- If their work has errors, name WHAT is wrong conceptually (e.g. "the limits of integration don't account for the constraint") without showing how to fix it.\n- If their work is correct so far, confirm what they've done right and name the next concept they'll need.\n- Format ALL math with KaTeX: $...$ inline, $$...$$ block. Use ^ for exponents, \\frac{}{} for fractions — always inside $...$.\n\nReturn ONLY valid JSON: {"isCorrect": boolean, "suggestion": "string"}. No markdown, no extra text.`,
-            },
-          ],
-        }),
-      })
-      if (!deepReq.ok) throw new Error(`Deep Analysis API error: ${await deepReq.text()}`)
+        'deep reasoning service',
+      )
       deepRes = await deepReq.json()
+      // eslint-disable-next-line no-console
+      console.info('[look-closer] reply', { ms: Date.now() - started })
     } finally {
       clearTimeout(deepTimeout)
     }
 
     const rawText: string = deepRes.choices[0].message.content
 
-    // Reuse same robust parsing logic as the quick-check route
     let parsedResult: Feedback | null = null
     const extractResult = (obj: unknown): Feedback | null => {
       if (isFeedbackShape(obj)) {
@@ -113,7 +109,11 @@ export async function POST(req: NextRequest) {
           .replace(/\\n/g, ' ')
           .replace(/\s{2,}/g, ' ')
           .trim()
-        return { isCorrect: obj.isCorrect, suggestion }
+        return normalizeFeedback({
+          suggestion,
+          isCorrect: typeof obj.isCorrect === 'boolean' ? obj.isCorrect : undefined,
+          judgement: typeof obj.judgement === 'string' ? obj.judgement : undefined,
+        })
       }
       return null
     }
@@ -130,30 +130,31 @@ export async function POST(req: NextRequest) {
         /* continue */
       }
     }
-    // Fallback regex extraction if JSON.parse fails due to unescaped backslashes
     if (!parsedResult) {
       const suggestionMatch = rawText.match(/"suggestion"\s*:\s*"([\s\S]*?)"\s*\}/)
       if (suggestionMatch) {
-        parsedResult = {
-          isCorrect: rawText.includes('"isCorrect": true') || rawText.includes('"isCorrect":true'),
+        parsedResult = normalizeFeedback({
+          isCorrect:
+            rawText.includes('"judgement": "correct"') || rawText.includes('"isCorrect": true'),
+          judgement: rawText.includes('"judgement": "progress"') ? 'progress' : undefined,
           suggestion: suggestionMatch[1]
             .replace(/\\n/g, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim(),
-        }
+        })
       }
     }
     if (!parsedResult) {
-      parsedResult = {
-        isCorrect: false,
+      parsedResult = normalizeFeedback({
+        judgement: 'progress',
         suggestion: rawText.replace(/<think>[\s\S]*?<\/think>/g, '').trim(),
-      }
+      })
     }
 
-    // Save feedback — ownership already verified above
     let savedId = undefined
 
     if (parsedResult) {
+      parsedResult = applyBoardChecks(parsedResult, canvasDescription)
       const { data, error: insertError } = await access.supabase
         .from('messages')
         .insert({
@@ -175,14 +176,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ...parsedResult, id: savedId })
+    return NextResponse.json({
+      ...parsedResult,
+      id: savedId,
+      canvasTranscription: canvasDescription,
+    })
   } catch (error: unknown) {
+    if (error instanceof UpstreamAIError) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[analyze-work-deep] Upstream AI error (${error.status}):`,
+        error.details || error.message,
+      )
+      return NextResponse.json({ error: error.userMessage }, { status: error.status })
+    }
+
     const isTimeout = error instanceof Error && error.name === 'AbortError'
     // eslint-disable-next-line no-console
-    console.error('analyze-work-deep error:', error)
+    console.error('[look-closer] failed', {
+      stage,
+      ms: Date.now() - started,
+      timeout: isTimeout,
+      status: error instanceof UpstreamAIError ? error.status : null,
+    })
     return NextResponse.json(
       {
-        error: isTimeout ? 'Analysis timed out. Please try again.' : 'An internal error occurred.',
+        error: isTimeout
+          ? `${stage === 'reading the page' ? 'Reading the page' : 'The reply'} timed out. Try again.`
+          : 'An unexpected error occurred during deep analysis. Please try again.',
       },
       { status: isTimeout ? 504 : 500 },
     )

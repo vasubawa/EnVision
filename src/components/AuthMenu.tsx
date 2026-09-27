@@ -106,67 +106,95 @@ export function AuthMenu({
 
   if (loading) return <div className="bg-foreground/10 h-5 w-20 animate-pulse rounded" />
 
-  return (
-    <>
-      <div className="flex w-full items-center gap-4 font-sans text-sm">
-        {user && !user.is_anonymous ? (
-          mode === 'sidebar' ? (
-            <div className="flex w-full flex-col gap-3">
-              <div className="flex items-center gap-2 px-1">
-                <div className="bg-primary-500/10 text-primary-500 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold">
-                  {user.email?.[0].toUpperCase()}
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span
-                    className="text-foreground/80 truncate text-sm font-medium"
-                    title={user.email}
-                  >
-                    {user.email}
-                  </span>
-                </div>
+  const renderTrigger = () => {
+    if (user && !user.is_anonymous) {
+      if (mode === 'sidebar') {
+        return (
+          <div className="flex w-full flex-col gap-3">
+            <div className="flex items-center gap-2 px-1">
+              <div className="bg-primary-500/10 text-primary-500 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold">
+                {user.email?.[0].toUpperCase()}
               </div>
-
-              <div className="flex items-center gap-1">
-                <Link
-                  href="/settings"
-                  className="hover:bg-foreground/5 text-foreground/60 hover:text-foreground flex flex-1 items-center justify-center rounded-md p-2 transition-colors"
-                  aria-label="Settings"
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span
+                  className="text-foreground/80 truncate text-sm font-medium"
+                  title={user.email}
                 >
-                  <Settings className="h-4 w-4" />
-                </Link>
-                <div className="flex flex-1 items-center justify-center">{themeToggle}</div>
-                <form action="/auth/signout" method="POST" className="flex flex-1">
-                  <button
-                    type="submit"
-                    className="text-foreground/60 flex w-full items-center justify-center rounded-md p-2 transition-colors hover:bg-red-500/10 hover:text-red-500"
-                    aria-label="Sign Out"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </button>
-                </form>
+                  {user.email}
+                </span>
               </div>
             </div>
-          ) : (
-            <Link
-              href="/workspaces"
-              className="bg-foreground text-background hover:bg-foreground/90 rounded-xl px-4 py-1.5 font-medium transition-colors"
-            >
-              My Workspaces
-            </Link>
-          )
-        ) : (
+
+            <div className="flex items-center gap-1">
+              <Link
+                href="/settings"
+                className="hover:bg-foreground/5 text-foreground/60 hover:text-foreground flex flex-1 items-center justify-center rounded-md p-2 transition-colors"
+                aria-label="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
+              <div className="flex flex-1 items-center justify-center">{themeToggle}</div>
+              <form action="/auth/signout" method="POST" className="flex flex-1">
+                <button
+                  type="submit"
+                  className="text-foreground/60 flex w-full items-center justify-center rounded-md p-2 transition-colors hover:bg-red-500/10 hover:text-red-500"
+                  aria-label="Sign Out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
+            </div>
+          </div>
+        )
+      }
+
+      return (
+        <Link
+          href="/workspaces"
+          className="bg-foreground text-background hover:bg-foreground/90 rounded-xl px-4 py-1.5 font-medium transition-colors"
+        >
+          My Workspaces
+        </Link>
+      )
+    }
+
+    if (mode === 'sidebar') {
+      return (
+        <div className="flex w-full items-center justify-between gap-2">
           <button
             onClick={() => {
               previousFocusRef.current = document.activeElement as HTMLElement
               setIsModalOpen(true)
               setTimeout(() => emailInputRef.current?.focus(), 0)
             }}
-            className="bg-foreground text-background hover:bg-foreground/90 rounded-xl px-4 py-1.5 font-medium transition-colors"
+            className="bg-foreground text-background hover:bg-foreground/90 flex-1 truncate rounded-xl px-3 py-2 text-center text-xs font-medium transition-colors"
           >
             {user?.is_anonymous ? 'Sign in to save' : 'Sign In'}
           </button>
-        )}
-      </div>
+          {themeToggle && (
+            <div className="flex shrink-0 items-center justify-center">{themeToggle}</div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <button
+        onClick={() => {
+          previousFocusRef.current = document.activeElement as HTMLElement
+          setIsModalOpen(true)
+          setTimeout(() => emailInputRef.current?.focus(), 0)
+        }}
+        className="bg-foreground text-background hover:bg-foreground/90 rounded-xl px-4 py-1.5 font-medium transition-colors"
+      >
+        {user?.is_anonymous ? 'Sign in to save' : 'Sign In'}
+      </button>
+    )
+  }
+
+  return (
+    <>
+      <div className="flex w-full items-center gap-4 font-sans text-sm">{renderTrigger()}</div>
 
       {isModalOpen &&
         typeof document !== 'undefined' &&

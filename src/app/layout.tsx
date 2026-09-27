@@ -3,7 +3,7 @@ import { Inter, Lora } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { CaptchaProvider } from '@/components/CaptchaModal'
-import { Toaster } from 'sonner'
+import { PaperToaster } from '@/components/PaperToaster'
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin'],
@@ -31,8 +31,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fdfcfb' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a1a1a' },
+    { media: '(prefers-color-scheme: light)', color: '#f3ece3' },
+    { media: '(prefers-color-scheme: dark)', color: '#161412' },
   ],
 }
 
@@ -55,7 +55,7 @@ export default function RootLayout({
         >
           <CaptchaProvider>
             {children}
-            <Toaster position="bottom-right" richColors theme="system" />
+            <PaperToaster />
           </CaptchaProvider>
         </ThemeProvider>
       </body>

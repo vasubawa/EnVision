@@ -12,7 +12,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/', req.url))
   }
 
-  // Get the most recent workspace
   const { data: workspaces, error } = await supabase
     .from('workspaces')
     .select('id')
@@ -25,7 +24,6 @@ export async function GET(req: NextRequest) {
   }
 
   if (!workspaces || workspaces.length === 0) {
-    // If no workspace exists, create one
     try {
       const formatter = new Intl.DateTimeFormat('en-US', {
         month: 'short',

@@ -67,14 +67,14 @@ export default function LoginPage() {
         if (migration.error) {
           toast.error(migration.error)
         } else {
-          toast.success(isSignUp ? 'Account created successfully!' : 'Signed in successfully!')
+          toast.success(isSignUp ? 'Account created' : 'Signed in')
         }
         if (!isSignUp) {
           router.push('/workspaces')
         }
       }
     } catch (_err) {
-      toast.error('An unexpected error occurred during authentication')
+      toast.error(isSignUp ? 'Could not create the account' : 'Could not sign in')
     } finally {
       setLoading(false)
     }
@@ -89,14 +89,21 @@ export default function LoginPage() {
           </h1>
           <p className="text-foreground/60 mt-2 text-sm">
             {isSignUp
-              ? 'Enter your details to sign up'
-              : 'Enter your email and password to sign in'}
+              ? 'A password keeps your sessions when you come back.'
+              : 'Your sessions stay on this account.'}
           </p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
           <div>
+            <label
+              htmlFor="auth-email"
+              className="text-foreground/80 mb-1 block text-sm font-medium"
+            >
+              Email
+            </label>
             <input
+              id="auth-email"
               type="email"
               placeholder="name@example.com"
               value={email}
@@ -134,12 +141,12 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Please wait
+                {isSignUp ? 'Creating account' : 'Signing in'}
               </>
             ) : isSignUp ? (
-              'Sign Up'
+              'Create account'
             ) : (
-              'Sign In'
+              'Sign in'
             )}
           </button>
 
@@ -149,7 +156,7 @@ export default function LoginPage() {
               onClick={() => setIsSignUp(!isSignUp)}
               className="text-primary-500 transition-colors hover:underline"
             >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Create one'}
             </button>
           </div>
         </form>

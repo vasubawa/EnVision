@@ -22,7 +22,6 @@ export function rateLimit(
   const now = Date.now()
   const windowStart = now - windowMs
 
-  // Prune inactive clients when reaching the limit
   if (hits.size >= MAX_CLIENTS && !hits.has(id)) {
     for (const [key, timestamps] of hits.entries()) {
       const active = timestamps.filter((t) => t > windowStart)
@@ -32,7 +31,6 @@ export function rateLimit(
         hits.set(key, active)
       }
     }
-    // Evict oldest remaining if still at limit
     if (hits.size >= MAX_CLIENTS) {
       const firstKey = hits.keys().next().value
       if (firstKey) hits.delete(firstKey)

@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'katex/dist/katex.min.css';
+@import 'sonner/dist/styles.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -25,41 +26,168 @@
 
 /* Minimalist Light Mode (Claude-inspired) */
 :root {
-  --background: #fdfcfb;
-  --foreground: #1c1917;
-  --card: #ffffff;
-  --card-foreground: #1c1917;
-  --border: #e5e5e5;
+  --background: #f3ece3;
+  --foreground: #1c1612;
+  --card: #faf6f0;
+  --card-foreground: #1c1612;
+  --border: #e0d5c6;
   --glow: rgba(192, 86, 33, 0.08);
 }
 
-/* Minimalist Dark Mode (Claude-inspired) */
 .dark {
-  --background: #1a1a1a;
-  --foreground: #f5f5f5;
-  --card: #222222;
-  --card-foreground: #f5f5f5;
-  --border: #333333;
+  --background: #161412;
+  --foreground: #f3ece3;
+  --card: #221e1a;
+  --card-foreground: #f3ece3;
+  --border: #3a332c;
   --glow: rgba(192, 86, 33, 0.08);
 }
 
-/* View Transitions API for theme toggling */
-::view-transition-old(root),
-::view-transition-new(root) {
+/* View Transitions API for theme toggling.
+   The browser blends the incoming snapshot with plus-lighter. That wash
+   only shows once the light page covers the dark one, so it reads as a
+   flicker at the end of dark → light. These selectors beat the browser
+   rule and keep both snapshots opaque. */
+html::view-transition-old(root),
+html::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
-::view-transition-old(root) {
+html.theme-pull::view-transition-old(root) {
+  z-index: 3;
+  mix-blend-mode: normal;
+  animation: theme-contract 650ms ease-in both;
+}
+html.theme-pull::view-transition-new(root) {
   z-index: 1;
+  mix-blend-mode: normal;
+  animation: none;
 }
-::view-transition-new(root) {
-  z-index: 2;
+html::view-transition-group(root) {
+  background: var(--background);
 }
-.dark::view-transition-old(root) {
+html::view-transition-image-pair(root) {
+  isolation: auto;
+}
+html.theme-shine::view-transition-new(root) {
+  z-index: 3;
+  mix-blend-mode: normal;
+  clip-path: circle(0px at var(--tx) var(--ty));
+  animation: theme-expand 700ms ease-out forwards;
+}
+html.theme-shine::view-transition-old(root) {
   z-index: 1;
+  mix-blend-mode: normal;
+  animation: theme-hide-old 700ms linear forwards;
 }
-.dark::view-transition-new(root) {
-  z-index: 2;
+
+@keyframes theme-hide-old {
+  0%,
+  69% {
+    opacity: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes theme-expand {
+  0% {
+    clip-path: circle(0px at var(--tx) var(--ty));
+  }
+  70% {
+    clip-path: circle(var(--tr) at var(--tx) var(--ty));
+  }
+  100% {
+    clip-path: circle(var(--tr) at var(--tx) var(--ty));
+  }
+}
+
+@keyframes theme-contract {
+  from {
+    clip-path: circle(var(--tr) at var(--tx) var(--ty));
+  }
+  to {
+    clip-path: circle(0px at var(--tx) var(--ty));
+  }
+}
+
+.theme-toggle {
+  position: relative;
+  isolation: isolate;
+}
+.theme-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.theme-toggle[data-theme='light']::before {
+  background: radial-gradient(circle, rgba(217, 119, 87, 0.5), transparent 68%);
+  animation: theme-shine 3.2s ease-in-out infinite;
+}
+.theme-toggle[data-theme='dark']::before {
+  background: radial-gradient(
+    circle,
+    transparent 20%,
+    rgba(255, 244, 230, 0.38) 62%,
+    transparent 74%
+  );
+  animation: theme-pull 3.2s ease-in-out infinite;
+}
+html.theme-shine .theme-toggle::before,
+html.theme-pull .theme-toggle::before {
+  animation-play-state: paused;
+}
+
+@keyframes theme-shine {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 0.16;
+  }
+}
+
+@keyframes theme-pull {
+  0%,
+  100% {
+    transform: scale(1.65);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(0.55);
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle::before {
+    animation: none;
+    opacity: 0.4;
+    transform: none;
+  }
+  html.theme-shine::view-transition-new(root),
+  html.theme-shine::view-transition-old(root),
+  html.theme-pull::view-transition-old(root) {
+    animation: none;
+    clip-path: none;
+  }
+}
+
+html {
+  background-color: var(--background);
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -76,8 +204,8 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(251, 240, 210, 0.18) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(192, 86, 33, 0.03) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(232, 210, 170, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(192, 86, 33, 0.04) 0%, transparent 60%);
 }
 
 .dark body::before,
@@ -85,6 +213,20 @@ body:is(.dark *) {
   background:
     radial-gradient(ellipse 80% 60% at 20% 10%, rgba(80, 50, 20, 0.12) 0%, transparent 70%),
     radial-gradient(ellipse 60% 50% at 80% 90%, rgba(192, 86, 33, 0.04) 0%, transparent 60%);
+}
+
+.paper-dots {
+  background-image: radial-gradient(circle, rgba(28, 25, 23, 0.5) 1.15px, transparent 1.35px);
+  background-size: 28px 28px;
+}
+
+.canvas-container,
+.canvas-container > canvas {
+  background-color: transparent;
+}
+
+.dark .paper-dots {
+  background-image: radial-gradient(circle, rgba(245, 245, 245, 0.14) 0.85px, transparent 0.95px);
 }
 
 /* Card: editorial restraint (flat, quiet) */
@@ -151,4 +293,25 @@ body:is(.dark *) {
 }
 .animate-fade-in-up {
   animation: fade-in-up 0.4s ease-out forwards;
+}
+
+[data-sonner-toaster][data-sonner-theme='light'],
+[data-sonner-toaster][data-sonner-theme='dark'] {
+  --normal-bg: var(--card);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
+  --border-radius: 14px;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  box-shadow: none;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type='error'] {
+  box-shadow: inset 3px 0 0 #c05621;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-icon] svg {
+  color: #c05621;
 }

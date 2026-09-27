@@ -2,22 +2,53 @@ export interface ChatEntry {
   id: string
   timestamp: number
   role: 'user' | 'assistant'
-  type: 'feedback' | 'message' // feedback = automated socratic check, message = free-form chat
-  isCorrect?: boolean // Only applicable if type === 'feedback'
-  content: string // The markdown content / suggestion
+  type: 'feedback' | 'message'
+  isCorrect?: boolean | null
+  judgement?: Judgement
+  content: string
 }
 
-// Shared shape expected from LLM JSON output in the analyze-work routes.
+export type Judgement = 'correct' | 'progress' | 'mistake'
+
 export interface Feedback {
-  isCorrect: boolean
+  isCorrect: boolean | null
+  judgement: Judgement
   suggestion: string
 }
 
-export function isFeedbackShape(obj: unknown): obj is Feedback {
+export function isFeedbackShape(
+  obj: unknown,
+): obj is { suggestion: string; isCorrect?: boolean; judgement?: string } {
+  if (typeof obj !== 'object' || obj === null) return false
+  const record = obj as { suggestion?: unknown; isCorrect?: unknown; judgement?: unknown }
+  if (typeof record.suggestion !== 'string') return false
   return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof (obj as Feedback).suggestion === 'string' &&
-    typeof (obj as Feedback).isCorrect === 'boolean'
+    record.judgement === 'correct' ||
+    record.judgement === 'progress' ||
+    record.judgement === 'mistake' ||
+    typeof record.isCorrect === 'boolean'
   )
+}
+
+export function normalizeFeedback(obj: {
+  suggestion: string
+  isCorrect?: boolean
+  judgement?: string
+}): Feedback {
+  const suggestion = obj.suggestion
+    .replace(/\r\n|\r|\n/g, ' ')
+    .replace(/\\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+  const judgement: Judgement =
+    obj.judgement === 'correct' || obj.judgement === 'progress' || obj.judgement === 'mistake'
+      ? obj.judgement
+      : obj.isCorrect
+        ? 'correct'
+        : 'mistake'
+  return {
+    suggestion,
+    judgement,
+    isCorrect: judgement === 'correct' ? true : judgement === 'mistake' ? false : null,
+  }
 }

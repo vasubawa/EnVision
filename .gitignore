@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# generated OCR worker assets
+public/ocr/
+
 # local dev / planning
 docs/
 temp/

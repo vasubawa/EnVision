@@ -2,8 +2,10 @@ import { NextRequest } from 'next/server'
 import { streamText, convertToModelMessages, type UIMessage } from 'ai'
 import { createGroq } from '@ai-sdk/groq'
 import { z } from 'zod'
-import { MODELS, apiKey, stripThinking } from '@/lib/models'
-import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import { MODELS, apiKey, UpstreamAIError } from '@/lib/models'
+import { SUBJECT_GUIDANCE } from '@/lib/prompts'
+import { transcribeImage } from '@/lib/vision'
+import { algebraPromptNote } from '@/lib/mathCheck'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
 
@@ -29,12 +31,27 @@ const uiMessageSchema = z
   })
   .passthrough()
 
+const recentFeedbackSchema = z.object({
+  content: z.string(),
+  isCorrect: z.boolean().nullable().optional(),
+  judgement: z.enum(['correct', 'progress', 'mistake']).optional(),
+})
+
+const learningPreferencesSchema = z.object({
+  oneStep: z.boolean().optional(),
+  shortReplies: z.boolean().optional(),
+  calm: z.boolean().optional(),
+  largeText: z.boolean().optional(),
+})
+
 const chatBodySchema = z.object({
   messages: z.array(uiMessageSchema).min(1).max(MAX_MESSAGES),
   canvasBase64: z.string().optional(),
-  // True only when the canvas has changed since the last message.
-  // Skipping vision on unchanged canvases saves ~5-20s per follow-up question.
   canvasChanged: z.boolean().optional().default(true),
+  cachedTranscription: z.string().optional(),
+  recentFeedback: z.array(recentFeedbackSchema).optional(),
+  learningPreferences: learningPreferencesSchema.optional(),
+  ocrText: z.string().optional(),
 })
 
 function getMessageText(message: UIMessage): string {
@@ -67,10 +84,27 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Messages are required.' }), { status: 400 })
     }
 
-    const { messages, canvasBase64, canvasChanged } = parsed.data as {
+    const {
+      messages,
+      canvasBase64,
+      canvasChanged,
+      cachedTranscription,
+      recentFeedback,
+      learningPreferences,
+      ocrText,
+    } = parsed.data as {
       messages: UIMessage[]
       canvasBase64?: string
       canvasChanged: boolean
+      cachedTranscription?: string
+      recentFeedback?: { content: string; isCorrect?: boolean | null; judgement?: string }[]
+      learningPreferences?: {
+        oneStep?: boolean
+        shortReplies?: boolean
+        calm?: boolean
+        largeText?: boolean
+      }
+      ocrText?: string
     }
 
     for (const message of messages) {
@@ -84,61 +118,46 @@ export async function POST(req: NextRequest) {
     }
 
     let systemPrompt =
-      "You are a helpful Socratic tutor. Guide the student using hints and questions. Keep replies SHORT: 2-4 sentences, or at most one short list of 3-4 items — never a multi-part outline covering several problems or steps at once. Ask ONE focused question at a time and wait for the student's answer before asking the next. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed ONLY in $ for inline and $$ for blocks — NEVER use \\\\( \\\\) or \\\\[ \\\\] delimiters. Write each formula EXACTLY ONCE: never restate, re-derive, or 'spell out' a formula a second time in different notation, and never break a formula or sentence into one word per line. NEVER use plain-text math like 'int(x)' or 'x^2' without $...$. For example, use $\\\\int$ instead of int, $\\\\frac{1}{2}$ instead of 1/2, and $H_2O$ instead of H2O. When listing a few short items, format them as a markdown list using '- ' or '1. ' rather than separate plain lines — this renders as a proper bulleted/numbered list."
+      "You are a helpful Socratic tutor. Guide the student using hints and questions. You have access to their current whiteboard transcription and feedback previously given by your evaluator assistants. When the student asks about prior feedback, mistakes, or next steps, directly reference their whiteboard and the feedback they received. Keep replies SHORT: 2-4 sentences, or at most one short list of 3-4 items — never a multi-part outline covering several problems or steps at once. Ask ONE focused question at a time and wait for the student's answer before asking the next. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed ONLY in $ for inline and $$ for blocks — NEVER use \\\\( \\\\) or \\\\[ \\\\] delimiters. Write each formula EXACTLY ONCE. When listing a few short items, format them as a markdown list using '- ' or '1. ' rather than separate plain lines. " +
+      SUBJECT_GUIDANCE
 
-    // Only transcribe when the canvas has new content — skips the expensive
-    // vision call for follow-up questions where the student hasn't drawn anything new.
+    if (ocrText && ocrText.trim()) {
+      systemPrompt += `\n\nProblem Statement (OCR):\n${ocrText.trim()}`
+    }
+
+    if (recentFeedback && recentFeedback.length > 0) {
+      const feedbackBullets = recentFeedback
+        .map(
+          (fb) =>
+            `- [Evaluation: ${fb.judgement === 'progress' ? 'Still in progress' : fb.isCorrect ? 'On Track / Correct' : 'Needs Correction / Mistake'}]: "${fb.content}"`,
+        )
+        .join('\n')
+      systemPrompt += `\n\nRecent whiteboard evaluations from your assistant checks:\n${feedbackBullets}\nDirectly connect your responses to these evaluations if the student asks for clarification or guidance on their mistakes.`
+    }
+
+    if (learningPreferences?.oneStep) {
+      systemPrompt += `\n\nSTRICT PACING RULE (One step at a time enabled): Give ONLY the immediate single micro-step or ask ONE focused question. Never reveal subsequent steps or solve ahead.`
+    }
+
+    if (learningPreferences?.shortReplies) {
+      systemPrompt += `\n\nSTRICT LENGTH RULE (Short explanations enabled): Keep your response extremely brief: 1-2 concise sentences maximum.`
+    }
+
+    let activeTranscription = cachedTranscription?.trim() || null
+
     if (canvasBase64 && canvasChanged) {
-      const visionAbort = new AbortController()
-      let visionTimeout: NodeJS.Timeout | null = null
       try {
-        visionTimeout = setTimeout(() => visionAbort.abort(), 20_000)
-        const visionReq = await fetch(`${MODELS.vision.apiBase}/chat/completions`, {
-          signal: visionAbort.signal,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey(MODELS.vision)}`,
-          },
-          body: JSON.stringify({
-            model: MODELS.vision.model,
-            max_tokens: 2000,
-            chat_template_kwargs: { enable_thinking: true, reasoning_budget: 1024 },
-            temperature: 0.6,
-            top_p: 0.95,
-            response_format: { type: 'json_object' },
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: VISION_TRANSCRIBE_PROMPT,
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: canvasBase64 },
-                  },
-                ],
-              },
-            ],
-          }),
-        })
-
-        if (visionReq.ok) {
-          const visionRes = await visionReq.json()
-          const transcription = extractTranscription(
-            visionRes.choices[0].message.content,
-            stripThinking,
-          )
-          systemPrompt += `\n\nThe student is currently looking at their whiteboard. Here is a transcription of what is on it right now:\n\n${transcription}`
-        }
+        const transcription = await transcribeImage(canvasBase64)
+        if (transcription) activeTranscription = transcription
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.error('Failed to transcribe canvas for chat.', e)
-      } finally {
-        if (visionTimeout) clearTimeout(visionTimeout)
+        console.warn('[chat] page read skipped', e instanceof Error ? e.message : e)
       }
+    }
+
+    if (activeTranscription) {
+      systemPrompt += `\n\nThe student is currently looking at their whiteboard. Here is a transcription of what is on it right now:\n\n${activeTranscription}`
+      systemPrompt += algebraPromptNote(activeTranscription)
     }
 
     const groq = createGroq({
@@ -146,8 +165,6 @@ export async function POST(req: NextRequest) {
       baseURL: MODELS.reasoning.apiBase,
     })
 
-    // Save the user message. Do NOT forward the client-generated id —
-    // let Supabase assign its own UUID to avoid RLS/constraint conflicts.
     const lastMessage = messages[messages.length - 1]
     if (lastMessage.role === 'user') {
       const { error: insertError } = await access.supabase.from('messages').insert({
@@ -160,8 +177,6 @@ export async function POST(req: NextRequest) {
       if (insertError) {
         // eslint-disable-next-line no-console
         console.error('Failed to save user message:', insertError)
-        // Don't block the user — log and continue. The AI response is more
-        // important than persistence; the message is already in client state.
       }
     }
 
@@ -185,11 +200,20 @@ export async function POST(req: NextRequest) {
     })
 
     return result.toUIMessageStreamResponse({
-      messageMetadata: () => ({ createdAt: Date.now() }),
+      messageMetadata: () => ({
+        createdAt: Date.now(),
+        canvasTranscription: activeTranscription || undefined,
+      }),
     })
   } catch (error: unknown) {
+    if (error instanceof UpstreamAIError) {
+      return new Response(JSON.stringify({ error: error.userMessage }), { status: error.status })
+    }
     // eslint-disable-next-line no-console
-    console.error('chat error: An internal error occurred.', error)
-    return new Response(JSON.stringify({ error: 'An internal error occurred.' }), { status: 500 })
+    console.error('chat error:', error)
+    return new Response(
+      JSON.stringify({ error: 'An unexpected error occurred. Please try again.' }),
+      { status: 500 },
+    )
   }
 }

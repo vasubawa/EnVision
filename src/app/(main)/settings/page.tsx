@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
 
 export default function SettingsPage() {
@@ -40,11 +41,11 @@ export default function SettingsPage() {
       if (error) {
         toast.error(error.message)
       } else {
-        toast.success('Password updated successfully!')
+        toast.success('Password saved')
         setNewPassword('')
       }
     } catch (_err) {
-      toast.error('An unexpected error occurred while updating the password')
+      toast.error('Could not save the password')
     } finally {
       setUpdatingPassword(false)
     }
@@ -53,7 +54,7 @@ export default function SettingsPage() {
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newEmail === user?.email) {
-      toast.info('This is already your email address.')
+      toast.info('That is already your email.')
       return
     }
 
@@ -67,10 +68,10 @@ export default function SettingsPage() {
       if (error) {
         toast.error(error.message)
       } else {
-        toast.success('Check your old and new email addresses for confirmation links.')
+        toast.success('Check both addresses for a confirmation link.')
       }
     } catch (_err) {
-      toast.error('An unexpected error occurred while updating the email')
+      toast.error('Could not save the email')
     } finally {
       setUpdatingEmail(false)
     }
@@ -87,27 +88,31 @@ export default function SettingsPage() {
   if (!user || user.is_anonymous) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8">
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="font-serif text-2xl">Settings</h1>
         <p className="text-foreground/60 mt-4 max-w-md text-center">
-          You are currently signed in anonymously. Please sign up or log in to a permanent account
-          to change your settings.
+          Sign in to change the email or password on this account.
         </p>
+        <Link
+          href="/login"
+          className="bg-primary-500 hover:bg-primary-600 mt-6 rounded-md px-4 py-2 text-sm text-white"
+        >
+          Sign in
+        </Link>
       </div>
     )
   }
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-8 text-3xl font-bold tracking-tight">Account Settings</h1>
+      <h1 className="mb-8 font-serif text-3xl tracking-tight">Account</h1>
 
       <div className="space-y-8">
-        {/* Email Settings */}
         <section className="bg-card border-border rounded-xl border p-6">
-          <h2 className="mb-4 text-xl font-semibold">Email Address</h2>
+          <h2 className="mb-4 font-serif text-xl">Email</h2>
           <form onSubmit={handleUpdateEmail} className="space-y-4">
             <div>
               <label htmlFor="email" className="text-foreground/80 mb-1 block text-sm font-medium">
-                New Email
+                Email
               </label>
               <input
                 id="email"
@@ -127,25 +132,24 @@ export default function SettingsPage() {
               {updatingEmail ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  Saving email
                 </>
               ) : (
-                'Update Email'
+                'Save email'
               )}
             </button>
           </form>
         </section>
 
-        {/* Password Settings */}
         <section className="bg-card border-border rounded-xl border p-6">
-          <h2 className="mb-4 text-xl font-semibold">Change Password</h2>
+          <h2 className="mb-4 font-serif text-xl">Password</h2>
           <form onSubmit={handleUpdatePassword} className="space-y-4">
             <div>
               <label
                 htmlFor="password"
                 className="text-foreground/80 mb-1 block text-sm font-medium"
               >
-                New Password
+                New password
               </label>
               <input
                 id="password"
@@ -166,10 +170,10 @@ export default function SettingsPage() {
               {updatingPassword ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  Saving password
                 </>
               ) : (
-                'Update Password'
+                'Save password'
               )}
             </button>
           </form>
