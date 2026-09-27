@@ -66,9 +66,9 @@ export function UploadDropzone() {
     try {
       if (useFile && file) {
         setWorkspaceFile(file)
-        toast.success('Extraction complete!', {
+        toast.success('Worksheet added', {
           id: TOAST_IDS.EXTRACT,
-          description: 'Opening your workspace...',
+          description: 'Opening your page…',
         })
       } else {
         setWorkspaceFile(null)
@@ -168,7 +168,7 @@ export function UploadDropzone() {
             <div className="min-w-0 flex-1 text-left">
               <p className="text-foreground truncate text-sm font-medium">{file.name}</p>
               <p className="text-foreground/40 mt-0.5 text-xs">
-                {formatFileSize(file.size)} · Ready to process
+                {formatFileSize(file.size)} · Ready to open
               </p>
             </div>
             <button
@@ -182,19 +182,14 @@ export function UploadDropzone() {
             </button>
           </div>
 
-          <div className="bg-border h-px w-full" />
-
-          <div className="flex items-center justify-between">
-            <p className="text-foreground/35 font-serif text-xs italic">
-              Ready to extract problems
-            </p>
+          <div className="flex justify-end">
             <button
               id="start-learning-btn"
               onClick={() => handleStartLearning(true)}
               disabled={isUploading}
               className="bg-primary-500 hover:bg-primary-600 flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
             >
-              {isUploading ? 'Starting…' : 'Start Learning'}
+              {isUploading ? 'Opening…' : 'Open page'}
               {!isUploading && <ArrowRight className="h-4 w-4" />}
             </button>
           </div>

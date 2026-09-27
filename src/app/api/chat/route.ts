@@ -3,7 +3,8 @@ import { streamText, convertToModelMessages, type UIMessage } from 'ai'
 import { createGroq } from '@ai-sdk/groq'
 import { z } from 'zod'
 import { MODELS, apiKey, stripThinking, fetchAIWithRetry, UpstreamAIError } from '@/lib/models'
-import { VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import { SUBJECT_GUIDANCE, VISION_TRANSCRIBE_PROMPT, extractTranscription } from '@/lib/prompts'
+import { algebraPromptNote } from '@/lib/mathCheck'
 import { rateLimit, isValidCanvasImage } from '@/lib/rateLimit'
 import { requireWorkspaceOwner } from '@/lib/require-workspace-owner'
 
@@ -31,7 +32,8 @@ const uiMessageSchema = z
 
 const recentFeedbackSchema = z.object({
   content: z.string(),
-  isCorrect: z.boolean(),
+  isCorrect: z.boolean().nullable().optional(),
+  judgement: z.enum(['correct', 'progress', 'mistake']).optional(),
 })
 
 const learningPreferencesSchema = z.object({
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
       canvasBase64?: string
       canvasChanged: boolean
       cachedTranscription?: string
-      recentFeedback?: { content: string; isCorrect: boolean }[]
+      recentFeedback?: { content: string; isCorrect?: boolean | null; judgement?: string }[]
       learningPreferences?: {
         oneStep?: boolean
         shortReplies?: boolean
@@ -115,7 +117,8 @@ export async function POST(req: NextRequest) {
     }
 
     let systemPrompt =
-      "You are a helpful Socratic tutor. Guide the student using hints and questions. You have access to their current whiteboard transcription and feedback previously given by your evaluator assistants. When the student asks about prior feedback, mistakes, or next steps, directly reference their whiteboard and the feedback they received. Keep replies SHORT: 2-4 sentences, or at most one short list of 3-4 items — never a multi-part outline covering several problems or steps at once. Ask ONE focused question at a time and wait for the student's answer before asking the next. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed ONLY in $ for inline and $$ for blocks — NEVER use \\\\( \\\\) or \\\\[ \\\\] delimiters. Write each formula EXACTLY ONCE. When listing a few short items, format them as a markdown list using '- ' or '1. ' rather than separate plain lines."
+      "You are a helpful Socratic tutor. Guide the student using hints and questions. You have access to their current whiteboard transcription and feedback previously given by your evaluator assistants. When the student asks about prior feedback, mistakes, or next steps, directly reference their whiteboard and the feedback they received. Keep replies SHORT: 2-4 sentences, or at most one short list of 3-4 items — never a multi-part outline covering several problems or steps at once. Ask ONE focused question at a time and wait for the student's answer before asking the next. STRICTLY format ALL math, physics, and chemistry expressions using LaTeX enclosed ONLY in $ for inline and $$ for blocks — NEVER use \\\\( \\\\) or \\\\[ \\\\] delimiters. Write each formula EXACTLY ONCE. When listing a few short items, format them as a markdown list using '- ' or '1. ' rather than separate plain lines. " +
+      SUBJECT_GUIDANCE
 
     if (ocrText && ocrText.trim()) {
       systemPrompt += `\n\nProblem Statement (OCR):\n${ocrText.trim()}`
@@ -125,7 +128,7 @@ export async function POST(req: NextRequest) {
       const feedbackBullets = recentFeedback
         .map(
           (fb) =>
-            `- [Evaluation: ${fb.isCorrect ? 'On Track / Correct' : 'Needs Correction / Mistake'}]: "${fb.content}"`,
+            `- [Evaluation: ${fb.judgement === 'progress' ? 'Still in progress' : fb.isCorrect ? 'On Track / Correct' : 'Needs Correction / Mistake'}]: "${fb.content}"`,
         )
         .join('\n')
       systemPrompt += `\n\nRecent whiteboard evaluations from your assistant checks:\n${feedbackBullets}\nDirectly connect your responses to these evaluations if the student asks for clarification or guidance on their mistakes.`
@@ -205,6 +208,7 @@ export async function POST(req: NextRequest) {
 
     if (activeTranscription) {
       systemPrompt += `\n\nThe student is currently looking at their whiteboard. Here is a transcription of what is on it right now:\n\n${activeTranscription}`
+      systemPrompt += algebraPromptNote(activeTranscription)
     }
 
     const groq = createGroq({

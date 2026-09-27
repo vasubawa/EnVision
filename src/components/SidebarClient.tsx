@@ -148,40 +148,49 @@ export default function SidebarClient({
           <div className="flex-1 overflow-y-auto px-2 py-2">
             <div className="text-foreground/50 mb-2 px-2 text-xs font-semibold">Recent</div>
             <div className="flex flex-col gap-0.5">
-              {workspaces.map((ws) => (
-                <Link
-                  key={ws.id}
-                  href={`/workspace/${ws.id}`}
-                  className={`group flex items-center justify-between gap-2 rounded-md px-2 py-2 text-sm transition-colors ${
-                    pathname === `/workspace/${ws.id}`
-                      ? 'bg-foreground/10 text-foreground font-medium'
-                      : 'text-foreground/70 hover:bg-foreground/5 hover:text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <MessageSquare className="text-foreground/40 group-hover:text-foreground/70 h-4 w-4 shrink-0" />
-                    <span className="truncate">{ws.title}</span>
-                  </div>
-                  <button
-                    onClick={(e) => handleDelete(ws.id, e)}
-                    disabled={deletingId === ws.id}
-                    className="text-foreground/40 rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 disabled:opacity-50"
-                    aria-label="Delete session"
+              {workspaces.length === 0 ? (
+                <p className="text-foreground/45 px-2 py-2 text-sm">
+                  Sessions you start show up here.
+                </p>
+              ) : (
+                workspaces.map((ws) => (
+                  <Link
+                    key={ws.id}
+                    href={`/workspace/${ws.id}`}
+                    className={`group flex items-center justify-between gap-2 rounded-md px-2 py-2 text-sm transition-colors ${
+                      pathname === `/workspace/${ws.id}`
+                        ? 'bg-foreground/10 text-foreground font-medium'
+                        : 'text-foreground/70 hover:bg-foreground/5 hover:text-foreground'
+                    }`}
                   >
-                    {deletingId === ws.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                </Link>
-              ))}
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <MessageSquare className="text-foreground/40 group-hover:text-foreground/70 h-4 w-4 shrink-0" />
+                      <span className="truncate">{ws.title}</span>
+                    </div>
+                    <button
+                      onClick={(e) => handleDelete(ws.id, e)}
+                      disabled={deletingId === ws.id}
+                      className="text-foreground/40 rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 disabled:opacity-50"
+                      aria-label="Delete session"
+                    >
+                      {deletingId === ws.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
 
           <div className="border-border/50 shrink-0 border-t p-4">
             <div className="flex flex-col gap-4">
-              <AuthMenu mode="sidebar" themeToggle={<ThemeToggle />} />
+              <AuthMenu
+                mode="sidebar"
+                themeToggle={/^\/workspace\/[^/]+/.test(pathname) ? undefined : <ThemeToggle />}
+              />
             </div>
           </div>
         </div>

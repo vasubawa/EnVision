@@ -43,23 +43,137 @@
   --glow: rgba(192, 86, 33, 0.08);
 }
 
-/* View Transitions API for theme toggling */
-::view-transition-old(root),
-::view-transition-new(root) {
+/* View Transitions API for theme toggling.
+   The browser blends the incoming snapshot with plus-lighter. That wash
+   only shows once the light page covers the dark one, so it reads as a
+   flicker at the end of dark → light. These selectors beat the browser
+   rule and keep both snapshots opaque. */
+html::view-transition-old(root),
+html::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
-::view-transition-old(root) {
+html.theme-pull::view-transition-old(root) {
+  z-index: 3;
+  mix-blend-mode: normal;
+  animation: theme-contract 650ms ease-in both;
+}
+html.theme-pull::view-transition-new(root) {
   z-index: 1;
+  mix-blend-mode: normal;
+  animation: none;
 }
-::view-transition-new(root) {
-  z-index: 2;
+html.theme-shine::view-transition-new(root) {
+  z-index: 3;
+  mix-blend-mode: normal;
+  animation: theme-expand 700ms ease-out both;
 }
-.dark::view-transition-old(root) {
+html.theme-shine::view-transition-old(root) {
   z-index: 1;
+  mix-blend-mode: normal;
+  animation: theme-covered 700ms linear both;
 }
-.dark::view-transition-new(root) {
-  z-index: 2;
+
+@keyframes theme-covered {
+  0%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes theme-expand {
+  0% {
+    clip-path: circle(0px at var(--tx) var(--ty));
+  }
+  82% {
+    clip-path: circle(var(--tr) at var(--tx) var(--ty));
+  }
+  100% {
+    clip-path: circle(var(--tr) at var(--tx) var(--ty));
+  }
+}
+
+@keyframes theme-contract {
+  from {
+    clip-path: circle(var(--tr) at var(--tx) var(--ty));
+  }
+  to {
+    clip-path: circle(0px at var(--tx) var(--ty));
+  }
+}
+
+.theme-toggle {
+  position: relative;
+  isolation: isolate;
+}
+.theme-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.theme-toggle[data-theme='light']::before {
+  background: radial-gradient(circle, rgba(217, 119, 87, 0.5), transparent 68%);
+  animation: theme-shine 3.2s ease-in-out infinite;
+}
+.theme-toggle[data-theme='dark']::before {
+  background: radial-gradient(
+    circle,
+    transparent 20%,
+    rgba(255, 244, 230, 0.38) 62%,
+    transparent 74%
+  );
+  animation: theme-pull 3.2s ease-in-out infinite;
+}
+html.theme-shine .theme-toggle::before,
+html.theme-pull .theme-toggle::before {
+  animation-play-state: paused;
+}
+
+@keyframes theme-shine {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 0.16;
+  }
+}
+
+@keyframes theme-pull {
+  0%,
+  100% {
+    transform: scale(1.65);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(0.55);
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle::before {
+    animation: none;
+    opacity: 0.4;
+    transform: none;
+  }
+  html.theme-shine::view-transition-new(root),
+  html.theme-shine::view-transition-old(root),
+  html.theme-pull::view-transition-old(root) {
+    animation: none;
+  }
+}
+
+html {
+  background-color: var(--background);
 }
 
 body {

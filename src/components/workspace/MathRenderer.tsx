@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
+import 'katex/contrib/mhchem'
 import rehypeKatex from 'rehype-katex'
 
 interface MathRendererProps {

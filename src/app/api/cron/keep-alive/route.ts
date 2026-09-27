@@ -3,8 +3,9 @@ import { createAdminClient } from '@/lib/supabase/server'
 
 /**
  * Heartbeat for free-tier Supabase (and optional Upstash).
- * Vercel Cron hits this twice daily; each run calls run_keep_alive() which
- * writes a counter + ping log, prunes old pings, and SELECTs app tables.
+ * Vercel Cron hits this once a day. A GitHub Action adds more reads so an
+ * idle week still counts as database activity. Each run calls run_keep_alive(),
+ * which writes a counter and ping log, prunes old pings, and SELECTs app tables.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET

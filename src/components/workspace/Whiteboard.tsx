@@ -7,18 +7,56 @@ import * as fabric from 'fabric'
 import * as pdfjsLib from 'pdfjs-dist'
 import { toast } from 'sonner'
 import { Toolbar, DrawingMode, BrushColor, BrushSize } from './Toolbar'
+import { readProblemImage } from '@/lib/ocr/readPrinted'
 
 // Same-origin worker from /public (copied from pdfjs-dist; must match installed version).
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 }
 
-export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?: string | null }) {
-  const { file, setGetCanvasImage, setGetCanvasJson, setLastCanvasUpdate } = useWorkspaceStore()
+/** Toolbar sizes are what you see on screen. Divide by zoom so a closer view writes a smaller mark. */
+function pageUnits(canvas: fabric.Canvas, screenPx: number) {
+  const zoom = canvas.getZoom() || 1
+  return screenPx / zoom
+}
+
+export function Whiteboard({
+  initialCanvasState = null,
+  workspaceId,
+}: {
+  initialCanvasState?: string | null
+  workspaceId: string
+}) {
+  const {
+    file,
+    setGetCanvasImage,
+    setGetInkImage,
+    setGetCanvasJson,
+    setLastCanvasUpdate,
+    setPrintedRead,
+    highlightToken,
+  } = useWorkspaceStore()
   const { resolvedTheme } = useTheme()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const fabricRef = useRef<fabric.Canvas | null>(null)
+
+  useEffect(() => {
+    if (!highlightToken) return
+    const canvas = fabricRef.current
+    if (!canvas) return
+    const selected = canvas.getActiveObjects().filter((object) => object.type === 'path')
+    const paths = canvas.getObjects().filter((object) => object.type === 'path')
+    const targets = selected.length > 0 ? selected : paths.slice(-3)
+    const previous = targets.map((object) => ({ object, stroke: object.stroke }))
+    targets.forEach((object) => object.set('stroke', '#7c3aed'))
+    canvas.requestRenderAll()
+    const timeout = window.setTimeout(() => {
+      previous.forEach(({ object, stroke }) => object.set('stroke', stroke))
+      canvas.requestRenderAll()
+    }, 3000)
+    return () => window.clearTimeout(timeout)
+  }, [highlightToken])
 
   const [mode, setMode] = useState<DrawingMode>('draw')
   const [color, setColor] = useState<BrushColor>('#C05621')
@@ -78,11 +116,30 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     }
   }, [history, historyIndex])
 
+  const readProblem = useCallback(
+    (source: Blob) => {
+      setPrintedRead({ status: 'reading', text: '' })
+      void readProblemImage(source, workspaceId)
+        .then(({ text, rough }) => {
+          setPrintedRead({ status: 'ready', text, rough })
+        })
+        .catch((err: unknown) => {
+          setPrintedRead({
+            status: 'failed',
+            text: '',
+            error: err instanceof Error ? err.message : 'Could not read that image.',
+          })
+        })
+    },
+    [setPrintedRead, workspaceId],
+  )
+
   const handleAddFile = useCallback(
     (fileToLoad: File) => {
       if (!fileToLoad || !fabricRef.current) return
 
       if (fileToLoad.type.startsWith('image/')) {
+        readProblem(fileToLoad)
         const reader = new FileReader()
         reader.onload = () => {
           const dataUrl = reader.result as string
@@ -129,6 +186,8 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
             }).promise
 
             const dataUrl = pdfCanvas.toDataURL('image/png')
+            const imageBlob = await (await fetch(dataUrl)).blob()
+            readProblem(imageBlob)
             const img = await fabric.FabricImage.fromURL(dataUrl)
 
             if (!fabricRef.current) return
@@ -150,7 +209,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         reader.readAsArrayBuffer(fileToLoad)
       }
     },
-    [saveHistory],
+    [saveHistory, readProblem],
   )
 
   useEffect(() => {
@@ -187,7 +246,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
           left: centerX - 100,
           top: centerY - 20,
           fill: color,
-          fontSize: 20,
+          fontSize: pageUnits(canvas, 20),
           fontFamily: 'var(--font-sans)',
         })
         canvas.add(text)
@@ -244,9 +303,13 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     })
     fabricRef.current = canvas
 
-    setGetCanvasImage(() => {
+    const capture = (hidePage: boolean) => {
       if (!fabricRef.current) return null
       const canvas = fabricRef.current
+      const pages = hidePage
+        ? canvas.getObjects().filter((object) => String(object.type).toLowerCase() === 'image')
+        : []
+      pages.forEach((object) => object.set('visible', false))
       const maxDim = Math.max(canvas.width || 800, canvas.height || 600)
       const multiplier = Math.min(1, 1280 / maxDim)
       const isDark = document.documentElement.classList.contains('dark')
@@ -259,9 +322,13 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         multiplier,
       })
       canvas.backgroundColor = prevBg
+      pages.forEach((object) => object.set('visible', true))
       canvas.renderAll()
       return dataUrl
-    })
+    }
+
+    setGetCanvasImage(() => capture(false))
+    setGetInkImage(() => capture(true))
 
     setGetCanvasJson(() => {
       if (!fabricRef.current) return null
@@ -270,7 +337,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
 
     const brush = new fabric.PencilBrush(canvas)
     brush.color = color
-    brush.width = size
+    brush.width = pageUnits(canvas, size)
     canvas.freeDrawingBrush = brush
 
     if (initialCanvasState) {
@@ -333,22 +400,34 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       ctx.restore()
     })
 
+    const getMode = () => document.documentElement.getAttribute('data-draw-mode') || 'draw'
+    const getColor = () => document.documentElement.getAttribute('data-draw-color') || '#C05621'
+    const getSize = () => parseInt(document.documentElement.getAttribute('data-draw-size') || '4')
+
+    const fitBrush = () => {
+      const active = canvas.freeDrawingBrush
+      if (!active) return
+      const screen = getMode() === 'highlighter' ? Math.max(16, getSize() * 3) : getSize()
+      active.width = pageUnits(canvas, screen)
+    }
+
     canvas.on('mouse:wheel', function (opt) {
       const e = opt.e
-      if (e.ctrlKey || e.metaKey) {
-        const delta = e.deltaY
-        let zoom = canvas.getZoom()
-        zoom *= 0.995 ** delta
-        if (zoom > 50) zoom = 50
-        if (zoom < 0.05) zoom = 0.05
-        canvas.zoomToPoint(new fabric.Point(e.offsetX, e.offsetY), zoom)
-      } else {
+      const middleHeld = (e.buttons & 4) === 4
+      if (middleHeld || e.shiftKey) {
         const vpt = canvas.viewportTransform
         if (vpt) {
           vpt[4] -= e.deltaX
           vpt[5] -= e.deltaY
           canvas.requestRenderAll()
         }
+      } else {
+        let zoom = canvas.getZoom()
+        zoom *= 0.995 ** e.deltaY
+        if (zoom > 50) zoom = 50
+        if (zoom < 0.05) zoom = 0.05
+        canvas.zoomToPoint(new fabric.Point(e.offsetX, e.offsetY), zoom)
+        fitBrush()
       }
       e.preventDefault()
       e.stopPropagation()
@@ -366,13 +445,10 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
     let origX = 0,
       origY = 0
 
-    const getMode = () => document.documentElement.getAttribute('data-draw-mode') || 'draw'
-    const getColor = () => document.documentElement.getAttribute('data-draw-color') || '#C05621'
-    const getSize = () => parseInt(document.documentElement.getAttribute('data-draw-size') || '4')
-
     canvas.on('mouse:down', function (opt) {
       const evt = opt.e as MouseEvent | TouchEvent
       const currentMode = getMode()
+      if (currentMode === 'draw' || currentMode === 'highlighter') fitBrush()
 
       const isTouchEvent = (e: Event): e is TouchEvent =>
         typeof TouchEvent !== 'undefined' && e instanceof TouchEvent
@@ -403,7 +479,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
           left: pointer.x,
           top: pointer.y,
           fill: getColor(),
-          fontSize: Math.max(20, getSize() * 5),
+          fontSize: pageUnits(canvas, Math.max(20, getSize() * 5)),
           fontFamily: 'var(--font-sans)',
         })
         canvas.add(text)
@@ -442,8 +518,10 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       }
 
       if (isMiddleClick || isAltKey || currentMode === 'pan') {
+        if (evt instanceof MouseEvent) evt.preventDefault()
         isPanning = true
         canvas.selection = false
+        canvas.isDrawingMode = false
         lastPosX = getClientX(evt)
         lastPosY = getClientY(evt)
         canvas.defaultCursor = 'grabbing'
@@ -465,7 +543,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
             height: 0,
             fill: 'transparent',
             stroke: currentColor,
-            strokeWidth: currentSize,
+            strokeWidth: pageUnits(canvas, currentSize),
             objectCaching: false,
           })
         } else if (currentMode === 'circle') {
@@ -475,13 +553,13 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
             radius: 0,
             fill: 'transparent',
             stroke: currentColor,
-            strokeWidth: currentSize,
+            strokeWidth: pageUnits(canvas, currentSize),
             objectCaching: false,
           })
         } else if (currentMode === 'line') {
           shapeObj = new fabric.Line([origX, origY, origX, origY], {
             stroke: currentColor,
-            strokeWidth: currentSize,
+            strokeWidth: pageUnits(canvas, currentSize),
           })
         }
 
@@ -529,6 +607,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
               if (zoom > 50) zoom = 50
               if (zoom < 0.05) zoom = 0.05
               canvas.zoomToPoint(new fabric.Point(currentCenter.x, currentCenter.y), zoom)
+              fitBrush()
             }
             initialTouchDistance = currentDistance
 
@@ -644,7 +723,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
       fabricRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, handleAddFile, saveHistory, setGetCanvasImage])
+  }, [file, handleAddFile, saveHistory, setGetCanvasImage, setGetInkImage])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-draw-mode', mode)
@@ -664,10 +743,10 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         const g = parseInt(color.slice(3, 5), 16) || 158
         const b = parseInt(color.slice(5, 7), 16) || 46
         canvas.freeDrawingBrush.color = `rgba(${r}, ${g}, ${b}, 0.35)`
-        canvas.freeDrawingBrush.width = Math.max(16, size * 3)
+        canvas.freeDrawingBrush.width = pageUnits(canvas, Math.max(16, size * 3))
       } else if (mode === 'draw') {
         canvas.freeDrawingBrush.color = color
-        canvas.freeDrawingBrush.width = size
+        canvas.freeDrawingBrush.width = pageUnits(canvas, size)
       }
     }
 
@@ -803,8 +882,9 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
   }, [])
 
   useEffect(() => {
-    if (!fabricRef.current) return
-    const activeObjects = fabricRef.current.getActiveObjects()
+    const canvas = fabricRef.current
+    if (!canvas) return
+    const activeObjects = canvas.getActiveObjects()
     if (activeObjects.length > 0) {
       let modified = false
       activeObjects.forEach((obj) => {
@@ -815,7 +895,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
           obj.type === 'circle'
         ) {
           obj.set('stroke', color)
-          obj.set('strokeWidth', size)
+          obj.set('strokeWidth', pageUnits(canvas, size))
           modified = true
         } else if (obj.type === 'i-text' || obj.type === 'text') {
           obj.set('fill', color)
@@ -823,7 +903,7 @@ export function Whiteboard({ initialCanvasState = null }: { initialCanvasState?:
         }
       })
       if (modified) {
-        fabricRef.current.requestRenderAll()
+        canvas.requestRenderAll()
         saveHistory()
       }
     }

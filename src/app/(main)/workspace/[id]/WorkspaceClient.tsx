@@ -11,7 +11,11 @@ const Whiteboard = dynamic(
 )
 import { TutorChat } from '@/components/workspace/TutorChat'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { EnVisionMark } from '@/components/EnVisionMark'
 import { LearningControls } from '@/components/workspace/LearningControls'
+import { LiveTutor } from '@/components/workspace/LiveTutor'
+import { EquationGraph, firstPlottable } from '@/components/workspace/EquationGraph'
+import { PrintedProblemChip } from '@/components/workspace/PrintedProblemChip'
 
 interface Workspace {
   id: string
@@ -30,12 +34,13 @@ export default function WorkspaceClient({
 }) {
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
-  const [title, setTitle] = useState(workspace.title || 'Blank Workspace')
-  const [committedTitle, setCommittedTitle] = useState(workspace.title || 'Blank Workspace')
+  const [title, setTitle] = useState(workspace.title || 'Blank page')
+  const [committedTitle, setCommittedTitle] = useState(workspace.title || 'Blank page')
   const [isSavingTitle, setIsSavingTitle] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
-  const { lastCanvasUpdate, getCanvasJson } = useWorkspaceStore()
+  const { lastCanvasUpdate, getCanvasJson, canvasTranscription, ocrText } = useWorkspaceStore()
+  const [graphOpen, setGraphOpen] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -72,13 +77,14 @@ export default function WorkspaceClient({
   }, [lastCanvasUpdate, getCanvasJson, workspace.id, workspace.user_id, supabase])
 
   useEffect(() => {
+    if (!lastCanvasUpdate) return
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault()
       e.returnValue = ''
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [])
+  }, [lastCanvasUpdate])
 
   const handleTitleSubmit = async () => {
     if (!title.trim() || title.trim() === committedTitle) {
@@ -157,6 +163,15 @@ export default function WorkspaceClient({
           )}
         </div>
         <div className="flex items-center justify-end gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            onClick={() => setGraphOpen((open) => !open)}
+            aria-pressed={graphOpen}
+            className="text-foreground/70 hover:bg-foreground/5 hover:text-foreground flex h-8 items-center rounded-lg px-2.5 text-xs font-medium"
+          >
+            Graph
+          </button>
+          <LiveTutor workspaceId={workspace.id} />
           <LearningControls />
           <ThemeToggle />
         </div>
@@ -164,7 +179,14 @@ export default function WorkspaceClient({
 
       <main className="relative flex flex-1 overflow-hidden">
         <div className="relative h-full w-full bg-white dark:bg-black/20">
-          <Whiteboard initialCanvasState={initialCanvasState} />
+          <Whiteboard initialCanvasState={initialCanvasState} workspaceId={workspace.id} />
+          <PrintedProblemChip />
+          {graphOpen ? (
+            <EquationGraph
+              initial={firstPlottable(canvasTranscription || ocrText)}
+              onClose={() => setGraphOpen(false)}
+            />
+          ) : null}
         </div>
 
         <>
@@ -191,10 +213,8 @@ export default function WorkspaceClient({
             <div className="bg-card border-border/50 flex h-full flex-col overflow-hidden rounded-t-2xl border shadow-2xl backdrop-blur-xl sm:rounded-2xl">
               <div className="bg-card/80 border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5 backdrop-blur-md sm:py-3">
                 <div className="flex items-center gap-2">
-                  <div className="bg-primary-500/10 flex h-6 w-6 items-center justify-center rounded-full">
-                    <span className="text-primary-500 font-serif text-xs font-bold">AI</span>
-                  </div>
-                  <span className="font-serif text-sm font-medium">Tutor Chat</span>
+                  <EnVisionMark className="text-primary-500 h-4 w-4" />
+                  <span className="font-serif text-sm font-medium">Tutor</span>
                 </div>
                 <button
                   onClick={() => setIsChatOpen(false)}
@@ -219,7 +239,8 @@ export default function WorkspaceClient({
             'transition-all duration-200 hover:scale-105 active:scale-95',
             'bottom-24 sm:right-6 sm:bottom-6 sm:h-14 sm:w-14',
           ].join(' ')}
-          title={isChatOpen ? 'Close AI Tutor' : 'Open AI Tutor'}
+          aria-label={isChatOpen ? 'Close tutor' : 'Open tutor'}
+          title={isChatOpen ? 'Close tutor' : 'Open tutor'}
         >
           {isChatOpen ? (
             <X className="h-4 w-4 sm:h-6 sm:w-6" />

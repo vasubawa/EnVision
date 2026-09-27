@@ -12,22 +12,22 @@ const OPTIONS: {
   {
     key: 'oneStep',
     label: 'One step at a time',
-    description: 'Strictly one micro-hint; never jumps ahead',
+    description: 'One hint, then it waits',
   },
   {
     key: 'shortReplies',
     label: 'Short explanations',
-    description: 'Brief, 1-2 sentence focused answers',
+    description: 'A sentence or two',
   },
   {
     key: 'largeText',
     label: 'Larger text',
-    description: 'Enlarge math and chat font for easier reading',
+    description: 'Bigger type in the tutor',
   },
   {
     key: 'calm',
     label: 'Calm motion',
-    description: 'Reduce motion and animations for focused study',
+    description: 'Less movement on the page',
   },
 ]
 
@@ -63,7 +63,7 @@ export function LearningControls() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Learning and accessibility settings"
         aria-expanded={isOpen}
-        title="Learning tools"
+        title="Help style"
         className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors ${
           isOpen
             ? 'bg-primary-500/15 text-primary-500 font-semibold'
@@ -71,7 +71,7 @@ export function LearningControls() {
         }`}
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Learning tools</span>
+        <span className="hidden sm:inline">Help style</span>
       </button>
 
       {isOpen && (
@@ -82,11 +82,8 @@ export function LearningControls() {
         >
           <div className="border-border/40 mb-2 border-b pb-2">
             <span className="text-foreground text-xs font-semibold tracking-wide">
-              Learning Preferences
+              How the tutor helps
             </span>
-            <p className="text-foreground/50 text-[11px]">
-              Customize the tutor&apos;s pacing and presentation.
-            </p>
           </div>
 
           <div className="flex flex-col gap-1">

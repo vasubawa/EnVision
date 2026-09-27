@@ -2,7 +2,7 @@
 
 ![EnVision Landing Page](./public/landingpage.png)
 
-An AI-tutored whiteboard for STEM subjects — physics, chemistry, calculus, circuits, algorithms, and more. Upload a problem set or start with a blank canvas, work it out by hand, and get Socratic feedback as you go instead of just being handed the answer.
+An AI-tutored whiteboard for STEM subjects. It is meant to stay useful from a first look at a topic through university physics, organic chemistry, and differential equations, and it also covers circuits, algorithms, and code. Upload a problem set or start with a blank canvas, work it out by hand, and get Socratic feedback as you go instead of just being handed the answer.
 
 Jump straight in anonymously, or sign up to save your work and pick up where you left off.
 
@@ -59,7 +59,7 @@ The project is designed to deploy on Vercel.
 
 ### Keep-alive (Supabase free tier)
 
-Free Supabase projects can pause after ~7 days of low database activity. Two Vercel Cron jobs (Hobby allows 2/day) hit `GET /api/cron/keep-alive` at **06:00** and **18:00** UTC. Each run calls `run_keep_alive()`, which:
+Free Supabase projects can pause after about a week with too few database queries. This app can sit unused for longer than that, so a schedule keeps it active. Hobby cron can run once a day, at **14:15 UTC**, and hits `GET /api/cron/keep-alive`. A GitHub Action calls the same route at 02:15, 10:15, and 18:15 UTC. Each run calls `run_keep_alive()`, which:
 
 1. Increments `keep_alive_counter` (write)
 2. Inserts a row into `keep_alive_pings` (write)
@@ -67,7 +67,9 @@ Free Supabase projects can pause after ~7 days of low database activity. Two Ver
 4. Counts rows in `profiles`, `workspaces`, and `messages` (reads)
 5. Optionally pings Upstash Redis if configured
 
-**Vercel:** set `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Production. Vercel sends `Authorization: Bearer <CRON_SECRET>` on cron invocations. Success looks like `{ "ok": true, "supabase": { "ok": true, "result": { "pingCount": N, ... } } }`.
+**Vercel:** set `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Production. Vercel sends `Authorization: Bearer <CRON_SECRET>` on cron invocations. For the extra daily reads, add repository secrets `APP_URL` (production origin, no trailing slash) and `CRON_SECRET` (same value) so `.github/workflows/keep-alive.yml` can call the route. Success looks like `{ "ok": true, "supabase": { "ok": true, "result": { "pingCount": N, ... } } }`.
+
+Set `GEMINI_API_KEY` for the live Talk button. The key stays on the server. The browser receives a short-lived token.
 
 If the project is already paused, restore it in the Supabase dashboard first; keep-alive cannot unpause a project.
 

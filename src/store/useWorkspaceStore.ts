@@ -15,6 +15,8 @@ interface WorkspaceState {
 
   getCanvasImage: (() => string | null) | null
   setGetCanvasImage: (fn: (() => string | null) | null) => void
+  getInkImage: (() => string | null) | null
+  setGetInkImage: (fn: (() => string | null) | null) => void
   getCanvasJson: (() => string | null) | null
   setGetCanvasJson: (fn: (() => string | null) | null) => void
 
@@ -29,6 +31,19 @@ interface WorkspaceState {
 
   learningPreferences: LearningPreferences
   setLearningPreferences: (patch: Partial<LearningPreferences>) => void
+
+  printedRead: PrintedRead | null
+  setPrintedRead: (read: PrintedRead | null) => void
+
+  highlightToken: number
+  requestHighlight: () => void
+}
+
+export type PrintedRead = {
+  status: 'reading' | 'ready' | 'failed'
+  text: string
+  error?: string
+  rough?: boolean
 }
 
 export interface LearningPreferences {
@@ -70,6 +85,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   getCanvasImage: null,
   setGetCanvasImage: (fn) => set({ getCanvasImage: fn }),
+  getInkImage: null,
+  setGetInkImage: (fn) => set({ getInkImage: fn }),
   getCanvasJson: null,
   setGetCanvasJson: (fn) => set({ getCanvasJson: fn }),
 
@@ -95,4 +112,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       }
       return { learningPreferences: updated }
     }),
+
+  printedRead: null,
+  setPrintedRead: (printedRead) => set({ printedRead, ocrText: printedRead?.text ?? null }),
+
+  highlightToken: 0,
+  requestHighlight: () => set((state) => ({ highlightToken: state.highlightToken + 1 })),
 }))
