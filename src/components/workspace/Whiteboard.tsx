@@ -57,7 +57,11 @@ export function Whiteboard({
       previous.forEach(({ object, stroke }) => object.set('stroke', stroke))
       canvas.requestRenderAll()
     }, 3000)
-    return () => window.clearTimeout(timeout)
+    return () => {
+      window.clearTimeout(timeout)
+      previous.forEach(({ object, stroke }) => object.set('stroke', stroke))
+      fabricRef.current?.requestRenderAll()
+    }
   }, [highlightToken])
 
   const [mode, setMode] = useState<DrawingMode>('draw')
@@ -222,6 +226,9 @@ export function Whiteboard({
       ) {
         return
       }
+
+      const active = fabricRef.current?.getActiveObject()
+      if (active instanceof fabric.IText && active.isEditing) return
 
       const items = Array.from(event.clipboardData?.items ?? [])
       const imageItem = items.find((item) => item.type.startsWith('image/'))
@@ -1010,7 +1017,7 @@ export function Whiteboard({
           obj.set('stroke', color)
           obj.set('strokeWidth', pageUnits(canvas, size))
           modified = true
-        } else if (obj.type === 'i-text' || obj.type === 'text') {
+        } else if (obj.type === 'itext' || obj.type === 'text') {
           obj.set('fill', color)
           modified = true
         }
@@ -1021,37 +1028,6 @@ export function Whiteboard({
       }
     }
   }, [color, size, saveHistory])
-
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      if (
-        document.activeElement?.tagName === 'INPUT' ||
-        document.activeElement?.tagName === 'TEXTAREA'
-      )
-        return
-
-      const activeObj = fabricRef.current?.getActiveObject()
-      if (activeObj && (activeObj as unknown as { isEditing?: boolean }).isEditing) return
-
-      const items = e.clipboardData?.items
-      if (!items) return
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile()
-          if (file) {
-            handleAddFile(file)
-            e.preventDefault()
-            break
-          }
-        }
-      }
-    }
-
-    window.addEventListener('paste', handlePaste)
-    return () => window.removeEventListener('paste', handlePaste)
-  }, [handleAddFile])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -418,7 +418,15 @@ export function applyBoardChecks<
     suggestion: string
   },
 >(result: T, transcription: string): T {
-  const checked = applyAlgebraVerdict(result, transcription)
+  const algebra = reviewAlgebra(transcription)
+  const checked = algebra?.rejects
+    ? {
+        ...result,
+        judgement: 'mistake' as const,
+        isCorrect: false as const,
+        suggestion: `${algebra.detail} ${result.suggestion}`,
+      }
+    : result
   const units = reviewUnits(transcription)
   if (!units) return checked
   return {

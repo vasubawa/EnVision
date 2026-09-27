@@ -8,6 +8,7 @@ on:
 
 jobs:
   ping:
+    permissions: {}
     runs-on: ubuntu-latest
     steps:
       - name: Call keep-alive
@@ -19,6 +20,6 @@ jobs:
             echo "Add APP_URL and CRON_SECRET repository secrets. APP_URL is the production origin, without a trailing slash."
             exit 1
           fi
-          curl --fail --silent --show-error \
+          curl --fail --silent --show-error --max-time 20 \
             --header "Authorization: Bearer ${CRON_SECRET}" \
             "${APP_URL}/api/cron/keep-alive"

@@ -187,6 +187,7 @@ export default function WorkspaceClient({
           <Whiteboard initialCanvasState={initialCanvasState} workspaceId={workspace.id} />
           {graphOpen ? (
             <EquationGraph
+              key={firstPlottable(canvasTranscription || ocrText)}
               initial={firstPlottable(canvasTranscription || ocrText)}
               onClose={() => setGraphOpen(false)}
             />

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     console.info('[check] start', {
       imageChars: typeof canvasBase64 === 'string' ? canvasBase64.length : 0,
     })
-    const canvasDescription = await transcribeImage(canvasBase64)
+    const canvasDescription = await transcribeImage(canvasBase64, 55_000)
     // eslint-disable-next-line no-console
     console.info('[check] read', { ms: Date.now() - started, chars: canvasDescription.length })
     stage = 'writing the reply'

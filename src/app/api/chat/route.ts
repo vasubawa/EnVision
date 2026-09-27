@@ -32,7 +32,7 @@ const uiMessageSchema = z
   .passthrough()
 
 const recentFeedbackSchema = z.object({
-  content: z.string(),
+  content: z.string().max(MAX_MESSAGE_CHARS),
   isCorrect: z.boolean().nullable().optional(),
   judgement: z.enum(['correct', 'progress', 'mistake']).optional(),
 })
@@ -48,10 +48,10 @@ const chatBodySchema = z.object({
   messages: z.array(uiMessageSchema).min(1).max(MAX_MESSAGES),
   canvasBase64: z.string().optional(),
   canvasChanged: z.boolean().optional().default(true),
-  cachedTranscription: z.string().optional(),
-  recentFeedback: z.array(recentFeedbackSchema).optional(),
+  cachedTranscription: z.string().max(MAX_MESSAGE_CHARS).optional(),
+  recentFeedback: z.array(recentFeedbackSchema).max(8).optional(),
   learningPreferences: learningPreferencesSchema.optional(),
-  ocrText: z.string().optional(),
+  ocrText: z.string().max(MAX_MESSAGE_CHARS).optional(),
 })
 
 function getMessageText(message: UIMessage): string {
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
 
     if (canvasBase64 && canvasChanged) {
       try {
-        const transcription = await transcribeImage(canvasBase64)
+        const transcription = await transcribeImage(canvasBase64, 25_000)
         if (transcription) activeTranscription = transcription
       } catch (e) {
         // eslint-disable-next-line no-console
