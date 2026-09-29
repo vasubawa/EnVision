@@ -22,11 +22,11 @@ importers:
   .:
     dependencies:
       '@ai-sdk/groq':
-        specifier: ^4.0.48
-        version: 4.0.48(zod@4.6.5)
+        specifier: ^4.0.50
+        version: 4.0.50(zod@4.6.5)
       '@ai-sdk/react':
-        specifier: ^4.0.117
-        version: 4.0.117(react@19.3.0)(zod@4.6.5)
+        specifier: ^4.0.119
+        version: 4.0.119(react@19.3.0)(zod@4.6.5)
       '@google/genai':
         specifier: ^2.24.0
         version: 2.24.0
@@ -46,8 +46,8 @@ importers:
         specifier: ^0.16.8
         version: 0.16.8
       ai:
-        specifier: ^7.0.114
-        version: 7.0.114(zod@4.6.5)
+        specifier: ^7.0.116
+        version: 7.0.116(zod@4.6.5)
       fabric:
         specifier: ^7.4.0
         version: 7.4.0
@@ -65,7 +65,7 @@ importers:
         version: 4.7.0
       next:
         specifier: ^16.3.6
-        version: 16.3.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.0)(@types/node@26.6.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.51.0)
+        version: 16.3.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.0)(@types/node@26.6.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.51.0)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -108,7 +108,7 @@ importers:
     devDependencies:
       '@commitlint/cli':
         specifier: ^21.2.3
-        version: 21.2.3(@types/node@26.6.2)(conventional-commits-parser@7.1.2)(typescript@6.0.3)
+        version: 21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@6.0.3)
       '@commitlint/config-conventional':
         specifier: ^21.2.3
         version: 21.2.3
@@ -116,8 +116,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
-        specifier: ^26.6.2
-        version: 26.6.2
+        specifier: ^26.6.3
+        version: 26.6.3
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -134,8 +134,8 @@ importers:
         specifier: ^9.1.7
         version: 9.1.7
       lint-staged:
-        specifier: ^17.5.1
-        version: 17.5.1
+        specifier: ^17.6.0
+        version: 17.6.0
       npm-run-all2:
         specifier: ^9.0.3
         version: 9.0.3
@@ -146,8 +146,8 @@ importers:
         specifier: ^0.8.1
         version: 0.8.1(prettier@3.9.9)
       supabase:
-        specifier: ^2.117.0
-        version: 2.117.0
+        specifier: ^2.118.0
+        version: 2.118.0
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -160,26 +160,26 @@ importers:
 
 packages:
 
-  '@ai-sdk/gateway@4.0.92':
-    resolution: {integrity: sha512-awX24+QedfcIDTAdwkCUNG08vPJjkQI9KZLGh4Ua+vNbgeaNFJre96OIbBefOD9XPHSVpdXjwqtWmo4Yh7oczw==}
+  '@ai-sdk/gateway@4.0.94':
+    resolution: {integrity: sha512-hcp7GLnMynH6NfMnemgvW9acn7j3WsUe/dHFzX3/fhPit08xhm1aYmDGHMiIT6YwsXVBxkit9TriKb2SGAOg+Q==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/groq@4.0.48':
-    resolution: {integrity: sha512-MclgPNkW8O1oRzwrRYrhr5z7YSOc5aBOljB4CnpA0vgyChX9qF9fkQ2GGjRyKilA61RLrpFk1FfDQBPfYb6xoQ==}
+  '@ai-sdk/groq@4.0.50':
+    resolution: {integrity: sha512-hNyn0BNfWyV0a6IfOxZ4QeymVAwzMEZ0iOMKnBtNdQS74hECd1bvKfPD/JCJDSZizZk65Q4b5a0rVpK4p2227g==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/mcp@2.0.58':
-    resolution: {integrity: sha512-WdL4183W4xW59ZY48xft5bFkSZfOz6ZzSrH+cE1Mf4uFvsgkKhtYIgMPT9qWoKPuWLHOAr5rTura5GzMkH4zIQ==}
+  '@ai-sdk/mcp@2.0.60':
+    resolution: {integrity: sha512-/veUBdZ3u/Kg/F5J2IPq8ePC2sxbtPsteZ9idUWLdmavxI46xbT/ygwWT+jOSp6I4x8p0z618fFdVSNVOyLL4g==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.47':
-    resolution: {integrity: sha512-NZQ1hMxY6Hd4ZiinjpU5HUOsyCHiTFkHw7AiM1EVN+Cd3kNTi47flZWNvFwGqnBojntB1+2eBRTeHRuVLtPhEg==}
+  '@ai-sdk/provider-utils@5.0.49':
+    resolution: {integrity: sha512-T+/H8DCvqJoCqLhltVatS7ffA779Iyk/ZZrgNXkrgv51E0n2Cd6eIdCmtwhCGIKqtbTtwCvTmQdAMv5Z8rOGHQ==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -188,8 +188,8 @@ packages:
     resolution: {integrity: sha512-+GZJIgz1jk86pwEbb3f1BD2bdoSKyWE4Jg4YUc7NMnMozbWemSKYZcw2F4nMaO5qwsL5A8RmioAKW81YktRpIQ==}
     engines: {node: '>=22'}
 
-  '@ai-sdk/react@4.0.117':
-    resolution: {integrity: sha512-lz7OHslQsKxiwTI+N+UIknu73bGkzOtIZMP6YKKEtUsIq7zXCpQdZ3QVQ3QeLBHST7Yo3elGnjZJc97qlUjvNg==}
+  '@ai-sdk/react@4.0.119':
+    resolution: {integrity: sha512-aAVXBhxcg1BymA8y9qIno3ltqdKvLZvRTBOcywTWlXqCSYgs+hd+cZUhje1RGGmiN/mbChl9vKr3pyiXUHcb9A==}
     engines: {node: '>=22'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
@@ -852,43 +852,43 @@ packages:
     resolution: {integrity: sha512-Z3WnGwrphYZubrLbxp5Iv0tLA9A5GhvKzJ/ZXglxqwd2QEH2R4dXRltjVJ8sIn4xEW2BSFIGT0yALVJIgZeDYw==}
     engines: {node: '>=22.0.0'}
 
-  '@supabase/cli-darwin-arm64@2.117.0':
-    resolution: {integrity: sha512-MQVIxL+B5/U9xiXcUtky0vJQ5Qe0qhGkK2JLGwi5BAo5XxcC+iP+KCsVB1/2zzYT+d+fOlZnKyTFFWYO6Ut1sw==}
+  '@supabase/cli-darwin-arm64@2.118.0':
+    resolution: {integrity: sha512-48W7wkHIVNgwSz4zr+xsC94la1PytCpudOw5w9qJWAISyBWRXMFBCEMb9aVIEG8S9OcLb4X1KZy4PPA/T+f7NQ==}
     cpu: [arm64]
     os: [darwin]
 
-  '@supabase/cli-darwin-x64@2.117.0':
-    resolution: {integrity: sha512-NMuY3n8Bfe+sPCdrUQQSFkOLFqlQYkg1C0SuqvJG4HVU8ukZ7IH2gy+HFGXNuVitFPapmHTPT8NjbZ+YrunZQw==}
+  '@supabase/cli-darwin-x64@2.118.0':
+    resolution: {integrity: sha512-r6z41S0ycJiy2cO6sbJA7kPCodpAus6b3Km+qyn2zYlnTLN0nbscYnKxrZf/rJNR+S+sdpOZXgdQjGc/z5jvXw==}
     cpu: [x64]
     os: [darwin]
 
-  '@supabase/cli-linux-arm64-musl@2.117.0':
-    resolution: {integrity: sha512-n5yZuBbBD5MnWqczezH72GAEfdTBHBk9Ei/pgpCnAJtClei9QQsiN1UZNw2A7K1EP4VWxgO/YZr3gFYgFFH1WQ==}
+  '@supabase/cli-linux-arm64-musl@2.118.0':
+    resolution: {integrity: sha512-8yXIa+9g3FVVlnUAZ9wB1NEP6kvO0tpqQkDs3wqmb6btLD1MYosD/2/ZazSkpEHiKOwKUSymvUg0OgqI7a1gpw==}
     cpu: [arm64]
     os: [linux]
 
-  '@supabase/cli-linux-arm64@2.117.0':
-    resolution: {integrity: sha512-CcMHEB8znY9usMJ2dwAKQV06XIYHzLgnq1KY6HzVT9XmXo0qZxTifC/oWgHX39SmCFm7a3HR4K5J95ysYz+8Hg==}
+  '@supabase/cli-linux-arm64@2.118.0':
+    resolution: {integrity: sha512-gYjOTnsYgwC68suoFALaXo87KvluXMjdWuo26a7hyD8vLeRJrmX+dpdxgegckQ7wxz8V1iotSBQU6Hd44FEDqw==}
     cpu: [arm64]
     os: [linux]
 
-  '@supabase/cli-linux-x64-musl@2.117.0':
-    resolution: {integrity: sha512-rlVDN5kXTOe+50wFN7DywFFx956XoYpEJpDkADvZ3k+qL5+7jGxSzQN/7xhHqlhjtSlHfx4QlxajfOerJNnrlg==}
+  '@supabase/cli-linux-x64-musl@2.118.0':
+    resolution: {integrity: sha512-baHVTKJ8OehCXIt6pjHFRXofoUqQzve+43lRKKeVlcgDmgHHTTaF/wTpNvQ86IhoDRkiQTuHQkDG8I5GtHdvEA==}
     cpu: [x64]
     os: [linux]
 
-  '@supabase/cli-linux-x64@2.117.0':
-    resolution: {integrity: sha512-qDJEURD/YajKD/OQ91O9XNHB/LHK9V8xZ9qGiUQCFhP9OAvMQjUT12j8k/mgTe4PqIxigGpfvm+eNxRcKnU9Rw==}
+  '@supabase/cli-linux-x64@2.118.0':
+    resolution: {integrity: sha512-nHm27uv15iu4xIQZRC++CS4uKYU9HuFn9HiOf407620OQ3cCp70fLT59grFlYQ+bqM7Zrv/GmEZHdgR8UO65RA==}
     cpu: [x64]
     os: [linux]
 
-  '@supabase/cli-windows-arm64@2.117.0':
-    resolution: {integrity: sha512-JNjI4dHhogjx1994jNoV9uUMioCrdzfdDJDeq0rZhYEepBGE9W+2gLniBQfQRzGxXK81mg5K3p9CTJYBZzbAKg==}
+  '@supabase/cli-windows-arm64@2.118.0':
+    resolution: {integrity: sha512-wd592HmQQ7DsGjnwDHILJfFlsRBQ8Q6wwjX5AXRmqznsj3NOPfFzZm2GtV8hJIj1Ttsf7B8N1DqW/0ta7kU4oQ==}
     cpu: [arm64]
     os: [win32]
 
-  '@supabase/cli-windows-x64@2.117.0':
-    resolution: {integrity: sha512-oFmeLMwgWAyQhzPoR6w+eUOfyJcRMNHN2Ju4BxBtpZ9vW+dO1bAsWd7aVVcpn1sgHA/ptM8U48P+se5yZR7BdQ==}
+  '@supabase/cli-windows-x64@2.118.0':
+    resolution: {integrity: sha512-qVAJL532b5pB8uJAPA/+3+wtwM/DX1GxwVLCSDmiT6wfUBD6OJcCYRXCEaUx0YjupyaDoPeuP4BF7IfkQTajww==}
     cpu: [x64]
     os: [win32]
 
@@ -1049,8 +1049,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@26.6.2':
-    resolution: {integrity: sha512-X1P21scMv4zGKLYqjdGjaKa7COa0RKVYYZZN/NfvLQ1JegxFhdhpZG/Lyn8AXx6CDUavKAd11v6BvfpkDByK8g==}
+  '@types/node@26.6.3':
+    resolution: {integrity: sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -1262,8 +1262,8 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai@7.0.114:
-    resolution: {integrity: sha512-jRMOw7tPMWVYomoHWY5xHBXPQDyKTY1Pn3BX0Rh39UOP6y9FYq6xCIB6khgIC/b9CRg4+IxadwIbie+Eu7yU3g==}
+  ai@7.0.116:
+    resolution: {integrity: sha512-gmkVGPzTNPcJixBiG9zUvP3gmvwko85dHiKrxFKK0zcVJIIu1FP6YDo3jna+ZrC2twMAsUPLr5htCwZjCINH3Q==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -2474,8 +2474,8 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
-  lint-staged@17.5.1:
-    resolution: {integrity: sha512-7EDuco1xnBMeVpvAbeMq1U5KXwJGLmY8q6l+Ye78r36C4mPc+Vg1Z2SK8gHyRTyvPro90A0q5/FAZ+Au23d6QQ==}
+  lint-staged@17.6.0:
+    resolution: {integrity: sha512-nOhBfYkZEwkFtNzD5pK9s9LkcWoxJ+whLzEnhqi9nl7zTB5n7tg8+9iYgMGx2Wm3VlLu8cbNj0RACzY+nWi5iQ==}
     engines: {node: '>=22.22.1'}
     hasBin: true
 
@@ -3258,8 +3258,8 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  supabase@2.117.0:
-    resolution: {integrity: sha512-V4UDf/kgrqllHbc22vs89bL7pdBj3xhVolvDflByS5FuJb+tXpWhHZxYEbBQspxA0fBzaj+lpiedB72xTAZA4w==}
+  supabase@2.118.0:
+    resolution: {integrity: sha512-0aPIlzBSBLwbJZCMZKD1QAwlc4xNnNvvk07QuSuuKBKzGLSeV3GovgTLlMKFTJ4JWfJubWF0URPLuPUr0kZr5g==}
     hasBin: true
 
   supports-color@7.2.0:
@@ -3614,28 +3614,28 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/gateway@4.0.92(zod@4.6.5)':
+  '@ai-sdk/gateway@4.0.94(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.18
-      '@ai-sdk/provider-utils': 5.0.47(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.49(zod@4.6.5)
       '@vercel/oidc': 3.2.0
       zod: 4.6.5
 
-  '@ai-sdk/groq@4.0.48(zod@4.6.5)':
+  '@ai-sdk/groq@4.0.50(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.18
-      '@ai-sdk/provider-utils': 5.0.47(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.49(zod@4.6.5)
       zod: 4.6.5
 
-  '@ai-sdk/mcp@2.0.58(zod@4.6.5)':
+  '@ai-sdk/mcp@2.0.60(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.18
-      '@ai-sdk/provider-utils': 5.0.47(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.49(zod@4.6.5)
       cross-spawn: 7.0.6
       pkce-challenge: 5.0.1
       zod: 4.6.5
 
-  '@ai-sdk/provider-utils@5.0.47(zod@4.6.5)':
+  '@ai-sdk/provider-utils@5.0.49(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.18
       '@standard-schema/spec': 1.1.0
@@ -3648,12 +3648,12 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@4.0.117(react@19.3.0)(zod@4.6.5)':
+  '@ai-sdk/react@4.0.119(react@19.3.0)(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/mcp': 2.0.58(zod@4.6.5)
+      '@ai-sdk/mcp': 2.0.60(zod@4.6.5)
       '@ai-sdk/provider': 4.0.18
-      '@ai-sdk/provider-utils': 5.0.47(zod@4.6.5)
-      ai: 7.0.114(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.49(zod@4.6.5)
+      ai: 7.0.116(zod@4.6.5)
       react: 19.3.0
       swr: 2.5.1(react@19.3.0)
       throttleit: 2.1.0
@@ -3773,12 +3773,12 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@commitlint/cli@21.2.3(@types/node@26.6.2)(conventional-commits-parser@7.1.2)(typescript@6.0.3)':
+  '@commitlint/cli@21.2.3(@types/node@26.6.3)(conventional-commits-parser@7.1.2)(typescript@6.0.3)':
     dependencies:
       '@commitlint/config-conventional': 21.2.3
       '@commitlint/format': 21.2.3
       '@commitlint/lint': 21.2.3
-      '@commitlint/load': 21.2.3(@types/node@26.6.2)(typescript@6.0.3)
+      '@commitlint/load': 21.2.3(@types/node@26.6.3)(typescript@6.0.3)
       '@commitlint/read': 21.2.3(conventional-commits-parser@7.1.2)
       '@commitlint/types': 21.2.3
       tinyexec: 1.3.1
@@ -3823,14 +3823,14 @@ snapshots:
       '@commitlint/rules': 21.2.3
       '@commitlint/types': 21.2.3
 
-  '@commitlint/load@21.2.3(@types/node@26.6.2)(typescript@6.0.3)':
+  '@commitlint/load@21.2.3(@types/node@26.6.3)(typescript@6.0.3)':
     dependencies:
       '@commitlint/config-validator': 21.2.3
       '@commitlint/execute-rule': 21.0.1
       '@commitlint/resolve-extends': 21.2.3
       '@commitlint/types': 21.2.3
       cosmiconfig: 9.0.2(typescript@6.0.3)
-      cosmiconfig-typescript-loader: 6.3.0(@types/node@26.6.2)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3)
+      cosmiconfig-typescript-loader: 6.3.0(@types/node@26.6.3)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3)
       es-toolkit: 1.52.0
       is-plain-obj: 4.1.0
       picocolors: 1.1.1
@@ -4298,28 +4298,28 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/cli-darwin-arm64@2.117.0':
+  '@supabase/cli-darwin-arm64@2.118.0':
     optional: true
 
-  '@supabase/cli-darwin-x64@2.117.0':
+  '@supabase/cli-darwin-x64@2.118.0':
     optional: true
 
-  '@supabase/cli-linux-arm64-musl@2.117.0':
+  '@supabase/cli-linux-arm64-musl@2.118.0':
     optional: true
 
-  '@supabase/cli-linux-arm64@2.117.0':
+  '@supabase/cli-linux-arm64@2.118.0':
     optional: true
 
-  '@supabase/cli-linux-x64-musl@2.117.0':
+  '@supabase/cli-linux-x64-musl@2.118.0':
     optional: true
 
-  '@supabase/cli-linux-x64@2.117.0':
+  '@supabase/cli-linux-x64@2.118.0':
     optional: true
 
-  '@supabase/cli-windows-arm64@2.117.0':
+  '@supabase/cli-windows-arm64@2.118.0':
     optional: true
 
-  '@supabase/cli-windows-x64@2.117.0':
+  '@supabase/cli-windows-x64@2.118.0':
     optional: true
 
   '@supabase/functions-js@2.117.2':
@@ -4463,7 +4463,7 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@26.6.2':
+  '@types/node@26.6.3':
     dependencies:
       undici-types: 8.9.0
 
@@ -4656,11 +4656,11 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@7.0.114(zod@4.6.5):
+  ai@7.0.116(zod@4.6.5):
     dependencies:
-      '@ai-sdk/gateway': 4.0.92(zod@4.6.5)
+      '@ai-sdk/gateway': 4.0.94(zod@4.6.5)
       '@ai-sdk/provider': 4.0.18
-      '@ai-sdk/provider-utils': 5.0.47(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.49(zod@4.6.5)
       zod: 4.6.5
 
   ajv@6.15.0:
@@ -4932,9 +4932,9 @@ snapshots:
 
   cookie@1.1.1: {}
 
-  cosmiconfig-typescript-loader@6.3.0(@types/node@26.6.2)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3):
+  cosmiconfig-typescript-loader@6.3.0(@types/node@26.6.3)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3):
     dependencies:
-      '@types/node': 26.6.2
+      '@types/node': 26.6.3
       cosmiconfig: 9.0.2(typescript@6.0.3)
       jiti: 2.6.1
       typescript: 6.0.3
@@ -6093,7 +6093,7 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  lint-staged@17.5.1:
+  lint-staged@17.6.0:
     dependencies:
       picomatch: 4.0.7
       string-argv: 0.3.2
@@ -6433,7 +6433,7 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  next@16.3.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.0)(@types/node@26.6.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.51.0):
+  next@16.3.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.0)(@types/node@26.6.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sass@1.51.0):
     dependencies:
       '@next/env': 16.3.6
       '@swc/helpers': 0.5.23
@@ -6454,7 +6454,7 @@ snapshots:
       '@next/swc-win32-x64-msvc': 16.3.6
       '@opentelemetry/api': 1.9.0
       sass: 1.51.0
-      sharp: 0.35.4(@types/node@26.6.2)
+      sharp: 0.35.4(@types/node@26.6.3)
     transitivePeerDependencies:
       - '@babel/core'
       - '@types/node'
@@ -6690,7 +6690,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.2
-      '@types/node': 26.6.2
+      '@types/node': 26.6.3
       long: 5.3.2
 
   pump@3.0.4:
@@ -6919,7 +6919,7 @@ snapshots:
       es-errors: 1.3.0
       es-object-atoms: 1.1.2
 
-  sharp@0.35.4(@types/node@26.6.2):
+  sharp@0.35.4(@types/node@26.6.3):
     dependencies:
       '@img/colour': 1.1.0
       detect-libc: 2.1.2
@@ -6950,7 +6950,7 @@ snapshots:
       '@img/sharp-win32-arm64': 0.35.4
       '@img/sharp-win32-ia32': 0.35.4
       '@img/sharp-win32-x64': 0.35.4
-      '@types/node': 26.6.2
+      '@types/node': 26.6.3
     optional: true
 
   shebang-command@2.0.0:
@@ -7117,19 +7117,19 @@ snapshots:
     optionalDependencies:
       '@babel/core': 7.29.7
 
-  supabase@2.117.0:
+  supabase@2.118.0:
     dependencies:
       eciesjs: 0.5.0
       jose: 6.2.12
     optionalDependencies:
-      '@supabase/cli-darwin-arm64': 2.117.0
-      '@supabase/cli-darwin-x64': 2.117.0
-      '@supabase/cli-linux-arm64': 2.117.0
-      '@supabase/cli-linux-arm64-musl': 2.117.0
-      '@supabase/cli-linux-x64': 2.117.0
-      '@supabase/cli-linux-x64-musl': 2.117.0
-      '@supabase/cli-windows-arm64': 2.117.0
-      '@supabase/cli-windows-x64': 2.117.0
+      '@supabase/cli-darwin-arm64': 2.118.0
+      '@supabase/cli-darwin-x64': 2.118.0
+      '@supabase/cli-linux-arm64': 2.118.0
+      '@supabase/cli-linux-arm64-musl': 2.118.0
+      '@supabase/cli-linux-x64': 2.118.0
+      '@supabase/cli-linux-x64-musl': 2.118.0
+      '@supabase/cli-windows-arm64': 2.118.0
+      '@supabase/cli-windows-x64': 2.118.0
 
   supports-color@7.2.0:
     dependencies:
