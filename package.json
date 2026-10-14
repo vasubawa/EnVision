@@ -40,7 +40,7 @@
     "sonner": "^2.0.8",
     "tesseract.js": "^7.0.0",
     "typewriter-effect": "^2.22.0",
-    "zod": "^4.6.5",
+    "zod": "^4.6.6",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
@@ -55,7 +55,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "npm-run-all2": "^9.0.3",
-    "prettier": "^3.9.9",
+    "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "supabase": "^2.120.0",
     "tailwindcss": "^4.3.3",
