@@ -17,7 +17,7 @@
     "@ai-sdk/groq": "^4.0.59",
     "@ai-sdk/react": "^4.0.140",
     "@google/genai": "^2.28.0",
-    "@marsidev/react-turnstile": "^1.6.1",
+    "@marsidev/react-turnstile": "^1.6.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "@tesseract.js-data/eng": "^1.0.0",
